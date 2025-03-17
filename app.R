@@ -2,7 +2,8 @@
 library(shiny)
 library(tidyverse)
 library(shinythemes)
-library(DT)  # for interactive tables
+library(psych)
+library(DT)
 
 # Function to process PCIbex file
 read_pcibex <- function(filepath,
@@ -39,6 +40,33 @@ read_pcibex <- function(filepath,
   }
 }
 
+dat <- read_pcibex("results_dev.csv")
+
+char_counts <- function(dat) {
+  char_cols <- dat |> dplyr::select(where(is.character)) 
+  
+  result <- list()
+  
+  for (col in colnames(char_cols)) {
+    summary_df <- char_cols |> 
+      group_by(.data[[col]]) |>
+      summarize(Count = n(), .groups = "drop")
+    
+    result[[col]] <- summary_df
+  }
+  
+  return(result) 
+}
+  
+char_summaries <- char_counts(dat)
+char_summaries["MD5.hash.of.participant.s.IP.address"]
+
+duration <-
+  dat |>
+  dplyr::select(IP, DURATION) |>
+  group_by(IP) |>
+  summarise(DURATION = max(DURATION))
+
 # Define UI for the application
 ui <- fluidPage(
   theme = shinytheme("yeti"),
@@ -46,7 +74,8 @@ ui <- fluidPage(
   
   sidebarLayout(
     sidebarPanel(
-      h4("Select raw output file:"),
+      # File selector
+      h3("Upload raw output file:"),
       fileInput(inputId = "raw.file",
                 accept = c("text", "text/plain", ".txt", ".TXT", ".csv", ".CSV"),
                 label = "Upload a CSV file (max. 30 MB)",
@@ -54,8 +83,8 @@ ui <- fluidPage(
                 placeholder = "No file selected"),
       actionButton("go", "Submit", class = "btn btn-info btn-block", icon = icon("gears")),
       hr(),
-      # Dynamic UI for selecting columns to keep
-      h4("Select which columns to include:"),
+      # Column selector
+      h3("Select which columns to include:"),
       uiOutput("column_selector"),
       hr(),
       p(strong("Download data as CSV table")),
@@ -65,8 +94,15 @@ ui <- fluidPage(
                      icon = icon("download"))
     ),
     mainPanel(
-      h2("Interactive Table Preview"),
-      DT::dataTableOutput("preview")
+      tabsetPanel(
+        tabPanel("Table Preview",
+                 DT::dataTableOutput("preview")
+        ),
+        tabPanel("Data summary",
+                 h3("Summary of numerical columns"),
+                 DT::dataTableOutput("dataSummary")
+        )
+      )
     )
   )
 )
@@ -85,7 +121,7 @@ server <- function(input, output, session) {
   # Create dynamic UI for selecting columns based on processed data
   output$column_selector <- renderUI({
     req(mydata())
-    checkboxGroupInput("selected_columns", "Select columns to include:", 
+    checkboxGroupInput("selected_columns", "", 
                        choices = names(mydata()), 
                        selected = names(mydata()))
   })
@@ -95,7 +131,8 @@ server <- function(input, output, session) {
     req(mydata())
     data_to_show <- mydata()
     if (!is.null(input$selected_columns)) {
-      data_to_show <- data_to_show[, input$selected_columns, drop = FALSE]
+      data_to_show <- data_to_show |>
+        dplyr::select(input$selected_columns)
     }
     DT::datatable(data_to_show, 
                   options = list(pageLength = 20, 
@@ -103,6 +140,22 @@ server <- function(input, output, session) {
                                  autoWidth = TRUE),
                   filter = "top",
                   rownames = FALSE)
+  })
+  
+  # Render summary information: column types and summary stats for numeric columns
+  output$dataSummary <- DT::renderDataTable({
+    req(mydata())
+    data <- mydata()
+    numeric_data <- data |>
+      dplyr::select(where(is.numeric)) |>
+      describe()
+
+
+    if (ncol(numeric_data) > 0) {
+      DT::datatable(numeric_data, rownames = TRUE)
+    } else {
+      cat("No numeric columns found.\n")
+    }
   })
   
   # Download handler to download the processed data as CSV with only selected columns
@@ -123,24 +176,3 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-# 
-# PCIbex Explorer
-# PCIbex Analyzer
-# PCIbex Insights
-# PCIbex Dashboard
-# PCIbex Data Studio
-# PCIbex QuickView
-# PCIbex Companion
-# PCIbex Navigator
-# PCIbex Wrangler
-# PCIbex Interactive
-# Ibex Insight Viewer
-# Ibex Data Companion
-# Ibex Analyzer Pro
-# Ibex Data Navigator
-# 
-# Ibex Summary Station
-# Data Ibex Toolbox
-# PCIbex Filter & Download
-# PCIbex Insight Engine
-# PCIbex Smart Viewer
