@@ -4,6 +4,15 @@ library(tidyverse)
 library(shinythemes)
 library(psych)
 library(DT)
+library(bslib)
+ibextheme <- bs_theme(
+  fg = "#201010", 
+  bg = "#ebe5e0", 
+  primary = "#794729",
+  secondary = "#7c6f42",
+  info = "#342e1a"
+)
+# bs_theme_preview(ibextheme)
 
 # Function to process PCIbex file
 read_pcibex <- function(filepath,
@@ -40,57 +49,60 @@ read_pcibex <- function(filepath,
   }
 }
 
-dat <- read_pcibex("results_dev.csv")
+# dat <- read_pcibex("results_dev.csv")
+# 
+# char_counts <- function(dat) {
+#   char_cols <- dat |> dplyr::select(where(is.character)) 
+#   
+#   result <- list()
+#   
+#   for (col in colnames(char_cols)) {
+#     summary_df <- char_cols |> 
+#       group_by(.data[[col]]) |>
+#       summarize(Count = n(), .groups = "drop")
+#     
+#     result[[col]] <- summary_df
+#   }
+#   
+#   return(result) 
+# }
+#   
+# char_summaries <- char_counts(dat)
+# char_summaries["MD5.hash.of.participant.s.IP.address"]
 
-char_counts <- function(dat) {
-  char_cols <- dat |> dplyr::select(where(is.character)) 
-  
-  result <- list()
-  
-  for (col in colnames(char_cols)) {
-    summary_df <- char_cols |> 
-      group_by(.data[[col]]) |>
-      summarize(Count = n(), .groups = "drop")
-    
-    result[[col]] <- summary_df
-  }
-  
-  return(result) 
-}
-  
-char_summaries <- char_counts(dat)
-char_summaries["MD5.hash.of.participant.s.IP.address"]
-
-duration <-
-  dat |>
-  dplyr::select(IP, DURATION) |>
-  group_by(IP) |>
-  summarise(DURATION = max(DURATION))
+# duration <-
+#   dat |>
+#   dplyr::select(IP, DURATION) |>
+#   group_by(IP) |>
+#   summarise(DURATION = max(DURATION))
 
 # Define UI for the application
 ui <- fluidPage(
-  theme = shinytheme("yeti"),
-  titlePanel("Ibex Explorer"),
+  theme=ibextheme,
+  # titlePanel("Ibexplorer"),
+  # img(src='ibex.svg', align = "right"),
   
   sidebarLayout(
     sidebarPanel(
+      img(src='ibex.svg'),
+      h1("Ibexplorer"),
+      p("File converter for PCIbex results files."),
+      
       # File selector
-      h3("Upload raw output file:"),
       fileInput(inputId = "raw.file",
                 accept = c("text", "text/plain", ".txt", ".TXT", ".csv", ".CSV"),
                 label = "Upload a CSV file (max. 30 MB)",
                 buttonLabel = "Browse",
                 placeholder = "No file selected"),
-      actionButton("go", "Submit", class = "btn btn-info btn-block", icon = icon("gears")),
+      actionButton("go", "Submit", class = "btn btn-block", icon = icon("gears")),
       hr(),
       # Column selector
-      h3("Select which columns to include:"),
+      p(strong("Select which columns to include:")),
       uiOutput("column_selector"),
       hr(),
-      p(strong("Download data as CSV table")),
       downloadButton(outputId = "downloadData", 
-                     label = "Download",
-                     class = "btn btn-block",
+                     label = "Download formatted CSV",
+                     class = "btn-secondary btn-block",
                      icon = icon("download"))
     ),
     mainPanel(
@@ -105,11 +117,12 @@ ui <- fluidPage(
       )
     )
   )
+# )
 )
 
 # Define server logic
 server <- function(input, output, session) {
-  
+  # bs_themer()
   # Process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
     inFile <- input$raw.file
