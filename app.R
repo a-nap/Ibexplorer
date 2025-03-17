@@ -53,6 +53,10 @@ ui <- fluidPage(
                 placeholder = "No file selected"),
       actionButton("go", "Submit", class = "btn btn-info btn-block", icon = icon("gears")),
       hr(),
+      # Dynamic UI for selecting columns to keep
+      h4("Select which columns to include"),
+      uiOutput("column_selector"),
+      hr(),
       p(strong("Download data as CSV table")),
       downloadButton(outputId = "downloadData", 
                      label = "Download",
@@ -67,7 +71,7 @@ ui <- fluidPage(
 )
 
 # Define server logic
-server <- function(input, output) {
+server <- function(input, output, session) {
   
   # Reactive expression to process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
@@ -77,20 +81,36 @@ server <- function(input, output) {
     read_pcibex(inFile$datapath, auto.colnames = TRUE)
   })
   
-  # Render a table preview (first 20 rows) of the processed data
-  output$preview <- renderTable({
-    req(mydata())  # Ensure that mydata() is available
-    head(mydata(), 20)
+  # Create dynamic UI for selecting columns based on processed data
+  output$column_selector <- renderUI({
+    req(mydata())
+    checkboxGroupInput("selected_columns", "Select columns to include:", 
+                       choices = names(mydata()), 
+                       selected = names(mydata()))
   })
   
-  # Download handler to download the processed data as CSV
+  # Render a table preview (first 20 rows) of the processed data with selected columns
+  output$preview <- renderTable({
+    req(mydata())
+    if (!is.null(input$selected_columns)) {
+      head(mydata()[, input$selected_columns, drop = FALSE], 20)
+    } else {
+      head(mydata(), 20)
+    }
+  })
+  
+  # Download handler to download the processed data as CSV with only selected columns
   output$downloadData <- downloadHandler(
     filename = function() {
       "formatted_data.csv"
     },
     content = function(file) {
       req(mydata())
-      write.csv(mydata(), file, row.names = FALSE)
+      data_to_download <- mydata()
+      if (!is.null(input$selected_columns)) {
+        data_to_download <- data_to_download[, input$selected_columns, drop = FALSE]
+      }
+      write.csv(data_to_download, file, row.names = FALSE)
     }
   )
 }
