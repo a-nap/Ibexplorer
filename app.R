@@ -2,6 +2,7 @@
 library(shiny)
 library(tidyverse)
 library(shinythemes)
+library(DT)  # for interactive tables
 
 # Function to process PCIbex file
 read_pcibex <- function(filepath,
@@ -41,11 +42,11 @@ read_pcibex <- function(filepath,
 # Define UI for the application
 ui <- fluidPage(
   theme = shinytheme("yeti"),
-  titlePanel("Format a PCIbex Results File"),
+  titlePanel("Ibex Explorer"),
   
   sidebarLayout(
     sidebarPanel(
-      h4("Select raw output file"),
+      h4("Select raw output file:"),
       fileInput(inputId = "raw.file",
                 accept = c("text", "text/plain", ".txt", ".TXT", ".csv", ".CSV"),
                 label = "Upload a CSV file (max. 30 MB)",
@@ -54,7 +55,7 @@ ui <- fluidPage(
       actionButton("go", "Submit", class = "btn btn-info btn-block", icon = icon("gears")),
       hr(),
       # Dynamic UI for selecting columns to keep
-      h4("Select which columns to include"),
+      h4("Select which columns to include:"),
       uiOutput("column_selector"),
       hr(),
       p(strong("Download data as CSV table")),
@@ -64,8 +65,8 @@ ui <- fluidPage(
                      icon = icon("download"))
     ),
     mainPanel(
-      h2("Table Preview"),
-      tableOutput("preview")
+      h2("Interactive Table Preview"),
+      DT::dataTableOutput("preview")
     )
   )
 )
@@ -73,7 +74,7 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
   
-  # Reactive expression to process the file when the "Submit" button is clicked
+  # Process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
     inFile <- input$raw.file
     if (is.null(inFile)) return(NULL)
@@ -89,14 +90,19 @@ server <- function(input, output, session) {
                        selected = names(mydata()))
   })
   
-  # Render a table preview (first 20 rows) of the processed data with selected columns
-  output$preview <- renderTable({
+  # Render an interactive DT table with dynamic filtering and pagination
+  output$preview <- DT::renderDataTable({
     req(mydata())
+    data_to_show <- mydata()
     if (!is.null(input$selected_columns)) {
-      head(mydata()[, input$selected_columns, drop = FALSE], 20)
-    } else {
-      head(mydata(), 20)
+      data_to_show <- data_to_show[, input$selected_columns, drop = FALSE]
     }
+    DT::datatable(data_to_show, 
+                  options = list(pageLength = 20, 
+                                 lengthMenu = c(20, 50, 100, 200),
+                                 autoWidth = TRUE),
+                  filter = "top",
+                  rownames = FALSE)
   })
   
   # Download handler to download the processed data as CSV with only selected columns
@@ -117,3 +123,24 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+# 
+# PCIbex Explorer
+# PCIbex Analyzer
+# PCIbex Insights
+# PCIbex Dashboard
+# PCIbex Data Studio
+# PCIbex QuickView
+# PCIbex Companion
+# PCIbex Navigator
+# PCIbex Wrangler
+# PCIbex Interactive
+# Ibex Insight Viewer
+# Ibex Data Companion
+# Ibex Analyzer Pro
+# Ibex Data Navigator
+# 
+# Ibex Summary Station
+# Data Ibex Toolbox
+# PCIbex Filter & Download
+# PCIbex Insight Engine
+# PCIbex Smart Viewer
