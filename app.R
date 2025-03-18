@@ -5,6 +5,7 @@ library(shinythemes)
 library(psych)
 library(DT)
 library(bslib)
+
 ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
@@ -49,36 +50,9 @@ read_pcibex <- function(filepath,
   }
 }
 
-# dat <- read_pcibex("results_dev.csv")
-# 
-# char_counts <- function(dat) {
-#   char_cols <- dat |> dplyr::select(where(is.character)) 
-#   
-#   result <- list()
-#   
-#   for (col in colnames(char_cols)) {
-#     summary_df <- char_cols |> 
-#       group_by(.data[[col]]) |>
-#       summarize(Count = n(), .groups = "drop")
-#     
-#     result[[col]] <- summary_df
-#   }
-#   
-#   return(result) 
-# }
-#   
-# char_summaries <- char_counts(dat)
-# char_summaries["MD5.hash.of.participant.s.IP.address"]
-
-# duration <-
-#   dat |>
-#   dplyr::select(IP, DURATION) |>
-#   group_by(IP) |>
-#   summarise(DURATION = max(DURATION))
-
 # Define UI for the application
 ui <- fluidPage(
-  theme=ibextheme,
+  theme = ibextheme,
   sidebarLayout(
     sidebarPanel(
       img(src='ibex.svg'),
@@ -92,15 +66,22 @@ ui <- fluidPage(
                 buttonLabel = "Browse",
                 placeholder = "No file selected"),
       actionButton("go", "Submit", class = "btn btn-block", icon = icon("gears")),
-      hr(),
-      # Column selector
-      p(strong("Select which columns to include:")),
-      uiOutput("column_selector"),
-      hr(),
       downloadButton(outputId = "downloadData", 
                      label = "Download formatted CSV",
                      class = "btn-secondary btn-block",
-                     icon = icon("download"))
+                     icon = icon("download")),
+      hr(),
+      # Column selector
+      p(strong("Include only these columns:")),
+      uiOutput("column_selector"),
+      hr(),
+      # Search phrase input for filtering rows
+      p(strong("Include only rows with this exact phrase:")),
+      textInput(inputId = "search_phrase",
+                label = "",
+                value = ""),
+      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
+      
     ),
     mainPanel(
       tabsetPanel(
@@ -109,16 +90,43 @@ ui <- fluidPage(
         ),
         tabPanel("Data summary",
                  DT::dataTableOutput("dataSummary")
+        ),
+        # tabPanel("Participant overview",
+        # DT::dataTableOutput("dataSummary")
+        # ),
+        tabPanel("Usage Guide",
+                 # Convert the markdown text to HTML
+                 HTML(markdown::markdownToHTML(text = "
+### How to use this app
+
+- Upload a unprocessed PCIbex output CSV file.
+- Click the **Submit** button to process the file.
+- (Optional) Select the columns to keep.
+- (Optional) Enter a search phrase to filter rows.
+- View the processed data in the preview tab.
+- Download the filtered dataset by clicking **Download formatted CSV**.
+
+### Troubleshooting
+
+Follow these steps if you're having trouble uploading and processing your data.
+
+- Ensure that your file is in CSV format.
+- Check that the file size does not exceed 30MB.
+- If no data appears, verify that the correct columns are selected.
+- If no data appears, verify that the row filter phrase is correct.
+- The explorer works only with the unmodified PCIbex results file.
+- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
+
+Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+                 ", fragment.only = TRUE))
         )
       )
     )
   )
-# )
 )
 
 # Define server logic
 server <- function(input, output, session) {
-  # bs_themer()
   # Process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
     inFile <- input$raw.file
@@ -130,55 +138,62 @@ server <- function(input, output, session) {
   # Create dynamic UI for selecting columns based on processed data
   output$column_selector <- renderUI({
     req(mydata())
-    checkboxGroupInput("selected_columns", "", 
-                       choices = names(mydata()), 
+    checkboxGroupInput("selected_columns", "",
+                       choices = names(mydata()),
                        selected = names(mydata()))
   })
   
-  # Render an interactive DT table with dynamic filtering and pagination
-  output$preview <- DT::renderDataTable({
+  # Reactive expression for filtered data based on column selection and search phrase
+  filtered_data <- reactive({
     req(mydata())
-    data_to_show <- mydata()
+    data <- mydata()
+    # Subset columns as selected by the user
     if (!is.null(input$selected_columns)) {
-      data_to_show <- data_to_show |>
-        dplyr::select(input$selected_columns)
+      data <- data[, input$selected_columns, drop = FALSE]
     }
-    DT::datatable(data_to_show, 
-                  options = list(pageLength = 20, 
+    # If a search phrase is provided, filter rows where any cell contains the phrase
+    if (!is.null(input$search_phrase) && input$search_phrase != "") {
+      data <- data[apply(data, 1, function(row) {
+        any(grepl(input$search_phrase, as.character(row), ignore.case = TRUE))
+      }), ]
+    }
+    return(data)
+  })
+  
+  # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
+  output$preview <- DT::renderDataTable({
+    req(filtered_data())
+    DT::datatable(filtered_data(),
+                  options = list(pageLength = 20,
                                  lengthMenu = c(20, 50, 100, 200),
                                  autoWidth = TRUE),
                   filter = "top",
                   rownames = FALSE)
   })
   
-  # Render summary information: column types and summary stats for numeric columns
+  # Render summary information: numeric summary for numeric columns of filtered data
   output$dataSummary <- DT::renderDataTable({
-    req(mydata())
-    data <- mydata()
-    numeric_data <- data |>
-      dplyr::select(where(is.numeric)) |>
-      describe()
-
-
+    req(filtered_data())
+    data <- filtered_data()
+    numeric_data <- data |> dplyr::select(where(is.numeric))
     if (ncol(numeric_data) > 0) {
-      DT::datatable(numeric_data, rownames = TRUE)
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- psych::describe(numeric_data)
+      DT::datatable(summary_stats, rownames = TRUE)
     } else {
-      cat("No numeric columns found.\n")
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
     }
   })
   
-  # Download handler to download the processed data as CSV with only selected columns
+  # Download handler: writes the filtered data as a CSV file
   output$downloadData <- downloadHandler(
     filename = function() {
       "formatted_data.csv"
     },
     content = function(file) {
-      req(mydata())
-      data_to_download <- mydata()
-      if (!is.null(input$selected_columns)) {
-        data_to_download <- data_to_download[, input$selected_columns, drop = FALSE]
-      }
-      write.csv(data_to_download, file, row.names = FALSE)
+      req(filtered_data())
+      write.csv(filtered_data(), file, row.names = FALSE)
     }
   )
 }
