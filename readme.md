@@ -1,25 +1,22 @@
-# Ibexplorer Documentation
+# Ibex Explorer
 
 ## Overview
 
-Ibexplorer is a Shiny web application designed for processing and filtering PCIbex results files. It allows users to upload a CSV file, select specific columns, filter rows based on a search phrase, preview the processed data, and download the formatted dataset.
+Ibex Explorer is a Shiny web application designed for processing and filtering PCIbex results files. It allows users to upload a CSV file, select specific columns, filter rows based on a search phrase, preview the processed data, and download the formatted dataset.
 
 ## Installation
 
 To run Ibexplorer, you need R and the required packages installed on your system.
 
-### Prerequisites
-
-1. Install R (https://cran.r-project.org/)
-2. Install Required Packages
-
-Run the following command in R to install the necessary dependencies:
+1. Install R: [https://cran.r-project.org/](https://cran.r-project.org/)
+2. Install Required Packages. Run the following command in R to install the necessary dependencies:
 
 ```r
 install.packages(c("shiny", "tidyverse", "shinythemes", "psych", "DT", "bslib"))
 ```
 
 ## Running the Application
+
 Save the application script as `app.R` and run it in R or RStudio using:
 
 ```r
@@ -61,4 +58,4 @@ This application is open-source and available for modification and redistributio
 
 ## Contact
 
-For questions or issues, reach out via GitHub or email the developer: anna.pryslopska[at]gmail.com.
+For questions or issues, reach out via GitHub or email the developer: `anna.pryslopska[at]gmail.com`.
