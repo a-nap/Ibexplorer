@@ -4,6 +4,10 @@
 
 Ibex Explorer is a Shiny web application designed for processing and filtering PCIbex results files. It allows users to upload a CSV file, select specific columns, filter rows based on a search phrase, preview the processed data, and download the formatted dataset.
 
+[Live demo.](https://anna-pryslopska.shinyapps.io/PCIbex-Explorer/)
+
+![Ibex Explorer preview](./www/ibexplorer.gif)
+
 ## Installation
 
 To run Ibexplorer, you need R and the required packages installed on your system.
@@ -27,7 +31,7 @@ This will launch the app in a web browser.
 
 ## Features
 
-- Supports CSV and TXT files up to 30MB.
+- Supports CSV files up to 30MB.
 - Processes PCIbex results files automatically.
 - Users can select which columns to include in the processed dataset.
 - Allows filtering rows based on a user-provided search phrase.
@@ -47,10 +51,12 @@ This will launch the app in a web browser.
 
 ## Troubleshooting
 
-- Ensure that your file is in CSV or TXT format.
+- Ensure that your file is in CSV format.
 - Check that the file size does not exceed 30MB.
 - If no data appears, verify that the correct columns are selected.
+- If no data appears, verify that the row filter phrase is correct.
 - The explorer works only with the unmodified PCIbex results file.
+- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
 
 ## License
 
