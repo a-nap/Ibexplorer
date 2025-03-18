@@ -56,7 +56,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       img(src='ibex.svg'),
-      h1("Ibexplorer"),
+      h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
       
       # File selector
