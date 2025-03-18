@@ -13,7 +13,6 @@ ibextheme <- bs_theme(
   secondary = "#7c6f42",
   info = "#342e1a"
 )
-# bs_theme_preview(ibextheme)
 
 # Function to process PCIbex file
 read_pcibex <- function(filepath,
