@@ -79,9 +79,6 @@ read_pcibex <- function(filepath,
 # Define UI for the application
 ui <- fluidPage(
   theme=ibextheme,
-  # titlePanel("Ibexplorer"),
-  # img(src='ibex.svg', align = "right"),
-  
   sidebarLayout(
     sidebarPanel(
       img(src='ibex.svg'),
@@ -111,7 +108,6 @@ ui <- fluidPage(
                  DT::dataTableOutput("preview")
         ),
         tabPanel("Data summary",
-                 h3("Summary of numerical columns"),
                  DT::dataTableOutput("dataSummary")
         )
       )
