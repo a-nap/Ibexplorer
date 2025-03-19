@@ -12,8 +12,8 @@ ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
   primary = "#794729",
-  secondary = "#7c6f42",
-  info = "#342e1a"
+  secondary = "#342e1a",
+  info = "#7c6f42"
 )
 
 # Function to process PCIbex file
@@ -94,8 +94,10 @@ ui <- fluidPage(
                  DT::dataTableOutput("preview")
         ),
         tabPanel("Data summary",
+        h3("Numerical data overview"),
           DT::dataTableOutput("dataSummary"),
-                 
+        hr(),
+        h3("List overview"),
         fluidRow(
           column(width = 6,
                  plotOutput("listPlot")
