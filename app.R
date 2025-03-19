@@ -6,12 +6,14 @@ library(psych)
 library(DT)
 library(bslib)
 
+options(shiny.maxRequestSize = 30*1024^2) 
+
 ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
   primary = "#794729",
-  secondary = "#7c6f42",
-  info = "#342e1a"
+  secondary = "#342e1a",
+  info = "#7c6f42"
 )
 
 # Function to process PCIbex file
@@ -80,7 +82,6 @@ ui <- fluidPage(
                 label = "",
                 value = ""),
       helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
-      
     ),
     mainPanel(
       tabsetPanel(
@@ -88,13 +89,30 @@ ui <- fluidPage(
                  DT::dataTableOutput("preview")
         ),
         tabPanel("Data summary",
-                 DT::dataTableOutput("dataSummary")
+                 h3("Numerical data overview"),
+                 DT::dataTableOutput("dataSummary"),
+                 hr(),
+                 h3("List overview"),
+                 fluidRow(
+                   column(width = 6,
+                          plotOutput("listPlot")
+                   ),
+                   column(width = 6,
+                          DT::dataTableOutput("listSummary")
+                   )
+                 )
         ),
-        # tabPanel("Participant overview",
-        # DT::dataTableOutput("dataSummary")
-        # ),
+        tabPanel("Participant overview",
+                 fluidRow(
+                   column(width = 6,
+                          plotOutput("participantPlot")
+                   ),
+                   column(width = 6,
+                          DT::dataTableOutput("participantSummary")
+                   )
+                 )
+        ),
         tabPanel("Usage Guide",
-                 # Convert the markdown text to HTML
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
 
@@ -177,11 +195,126 @@ server <- function(input, output, session) {
     numeric_data <- data |> dplyr::select(where(is.numeric))
     if (ncol(numeric_data) > 0) {
       # Using the psych package's describe function for summary statistics
-      summary_stats <- psych::describe(numeric_data)
+      summary_stats <- psych::describe(numeric_data) |> 
+        mutate(across(everything()))
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
       DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  # Render list information: count of list frequency in data
+  output$listSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data() |>
+      rename_with(~ make.unique(tolower(.))) %>%
+      {
+        if ("list" %in% names(.)) {
+          group_by(., list)
+        } else if ("group" %in% names(.)) {
+          group_by(., group)
+        } else {
+          stop("Neither 'list' nor 'group' column found in the data.")
+        }
+      } %>%
+      summarize(count = n())
+    if (ncol(data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  output$listPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()  %>%
+      rename_with(~ make.unique(tolower(.))) %>%
+      {
+        if ("list" %in% names(.)) {
+          group_by(., list)
+        } else if ("LIST" %in% names(.)) {
+          group_by(., group)
+        } else if ("group" %in% names(.)) {
+          group_by(., group)
+        } else {
+          stop("Neither 'list' nor 'group' column found in the data.")
+        }
+      } %>%
+      summarize(count = n(), .groups = 'drop')
+    
+    # Determine grouping column
+    grouping_column <- colnames(data)[1]
+    
+    # Generate the bar plot
+    ggplot(data, aes_string(x = grouping_column, y = "count")) +
+      geom_bar(stat = "identity", fill = "#342e1a") +
+      labs(
+        x = tools::toTitleCase(grouping_column),
+        y = "Row count",
+        title="Occurrences of each list in the data"
+      ) +
+      theme_bw() +
+      theme(
+        panel.background = element_rect(fill="#ebe5e0"),
+        plot.background = element_rect(fill="#ebe5e0", color=NA),
+        panel.grid.major = element_blank(),
+        legend.background = element_rect(fill="#ebe5e0"),
+        legend.box.background = element_rect(fill="#ebe5e0")
+      )
+  })
+  
+  
+  # Render participant information: count of participants in data
+  output$participantSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    if (ncol(participant_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- participant_data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  output$participantPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    # Ensure the participant ID column exists
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      participant_data <- data |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarize(count = n()) |>
+        ungroup()
+      
+      ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
+        geom_bar(stat = "identity", fill="#342e1a") +
+        labs(
+          title = "Occurences of each participant in the data",
+          y = "Participant IP",
+          x = "Row count"
+        ) +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        theme(
+          panel.background = element_rect(fill="#ebe5e0"),
+          plot.background = element_rect(fill="#ebe5e0", color=NA),
+          panel.grid.major = element_blank(),
+          legend.background = element_rect(fill="#ebe5e0"),
+          legend.box.background = element_rect(fill="#ebe5e0")
+        )
+    } else {
+      # Display a message if the participant ID column is missing
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
+        theme_void()
     }
   })
   
