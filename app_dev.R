@@ -6,6 +6,8 @@ library(psych)
 library(DT)
 library(bslib)
 
+options(shiny.maxRequestSize = 30*1024^2) 
+
 ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
@@ -13,7 +15,6 @@ ibextheme <- bs_theme(
   secondary = "#7c6f42",
   info = "#342e1a"
 )
-# bs_theme_preview(ibextheme)
 
 # Function to process PCIbex file
 read_pcibex <- function(filepath,
@@ -56,7 +57,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       img(src='ibex.svg'),
-      h1("Ibexplorer"),
+      h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
       
       # File selector
@@ -76,10 +77,16 @@ ui <- fluidPage(
       uiOutput("column_selector"),
       hr(),
       # Search phrase input for filtering rows
-      p(strong("Include only rows with this phrase:")),
+      p(strong("Include only rows with this exact phrase:")),
       textInput(inputId = "search_phrase",
                 label = "",
-                value = "")
+                value = ""),
+      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
+      # p(strong("Exclude rows with this exact phrase:")),
+      # textInput(inputId = "exclude_phrase",
+      #           label = "",
+      #           value = ""),
+      # helpText("For example 'NULL' or '_Header_' or 'SelfPacedReadingParadigm'"),
     ),
     mainPanel(
       tabsetPanel(
@@ -87,10 +94,51 @@ ui <- fluidPage(
                  DT::dataTableOutput("preview")
         ),
         tabPanel("Data summary",
-                 DT::dataTableOutput("dataSummary")
-        ),
+          DT::dataTableOutput("dataSummary"),
+                 
+        fluidRow(
+          column(width = 6,
+                 plotOutput("listPlot")
+          ),
+          column(width = 6,
+                 DT::dataTableOutput("listSummary")
+          )
+        )
+      ),
         tabPanel("Participant overview",
-                 DT::dataTableOutput("dataSummary")
+                 fluidRow(
+                   column(width = 6,
+                          plotOutput("participantPlot")
+                   ),
+                   column(width = 6,
+                          DT::dataTableOutput("participantSummary")
+                   )
+                 )
+        ),
+        tabPanel("Usage Guide",
+                 HTML(markdown::markdownToHTML(text = "
+### How to use this app
+
+- Upload a unprocessed PCIbex output CSV file.
+- Click the **Submit** button to process the file.
+- (Optional) Select the columns to keep.
+- (Optional) Enter a search phrase to filter rows.
+- View the processed data in the preview tab.
+- Download the filtered dataset by clicking **Download formatted CSV**.
+
+### Troubleshooting
+
+Follow these steps if you're having trouble uploading and processing your data.
+
+- Ensure that your file is in CSV format.
+- Check that the file size does not exceed 30MB.
+- If no data appears, verify that the correct columns are selected.
+- If no data appears, verify that the row filter phrase is correct.
+- The explorer works only with the unmodified PCIbex results file.
+- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
+
+Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+                 ", fragment.only = TRUE))
         )
       )
     )
@@ -150,11 +198,126 @@ server <- function(input, output, session) {
     numeric_data <- data |> dplyr::select(where(is.numeric))
     if (ncol(numeric_data) > 0) {
       # Using the psych package's describe function for summary statistics
-      summary_stats <- psych::describe(numeric_data)
+      summary_stats <- psych::describe(numeric_data) |> 
+        mutate(across(everything()))
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
       DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  # Render list information: count of list frequency in data
+  output$listSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data() |>
+      rename_with(~ make.unique(tolower(.))) %>%
+      {
+        if ("list" %in% names(.)) {
+          group_by(., list)
+        } else if ("group" %in% names(.)) {
+          group_by(., group)
+        } else {
+          stop("Neither 'list' nor 'group' column found in the data.")
+        }
+      } %>%
+      summarize(count = n())
+    if (ncol(data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  output$listPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()  %>%
+    rename_with(~ make.unique(tolower(.))) %>%
+      {
+        if ("list" %in% names(.)) {
+          group_by(., list)
+        } else if ("LIST" %in% names(.)) {
+          group_by(., group)
+        } else if ("group" %in% names(.)) {
+          group_by(., group)
+        } else {
+          stop("Neither 'list' nor 'group' column found in the data.")
+        }
+      } %>%
+      summarize(count = n(), .groups = 'drop')
+    
+    # Determine grouping column
+    grouping_column <- colnames(data)[1]
+
+    # Generate the bar plot
+    ggplot(data, aes_string(x = grouping_column, y = "count")) +
+      geom_bar(stat = "identity", fill = "#342e1a") +
+      labs(
+        x = tools::toTitleCase(grouping_column),
+        y = "Row count",
+        title="Occurrences of each list in the data"
+      ) +
+      theme_bw() +
+      theme(
+        panel.background = element_rect(fill="#ebe5e0"),
+        plot.background = element_rect(fill="#ebe5e0", color=NA),
+        panel.grid.major = element_blank(),
+        legend.background = element_rect(fill="#ebe5e0"),
+        legend.box.background = element_rect(fill="#ebe5e0")
+      )
+  })
+  
+  
+  # Render participant information: count of participants in data
+  output$participantSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    if (ncol(participant_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- participant_data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  output$participantPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    # Ensure the participant ID column exists
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      participant_data <- data |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarize(count = n()) |>
+        ungroup()
+      
+      ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
+        geom_bar(stat = "identity", fill="#342e1a") +
+        labs(
+          title = "Occurences of each participant in the data",
+          y = "Participant IP",
+          x = "Row count"
+        ) +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        theme(
+        panel.background = element_rect(fill="#ebe5e0"),
+      plot.background = element_rect(fill="#ebe5e0", color=NA),
+      panel.grid.major = element_blank(),
+      legend.background = element_rect(fill="#ebe5e0"),
+      legend.box.background = element_rect(fill="#ebe5e0")
+  )
+    } else {
+      # Display a message if the participant ID column is missing
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
+        theme_void()
     }
   })
   
