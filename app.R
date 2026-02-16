@@ -323,10 +323,10 @@ server <- function(input, output, session) {
   output$listPlot <- renderPlot({
     req(filtered_data())
     
-    data <- filtered_data() %>%
+    data <- filtered_data() |>
       rename_with(~ make.unique(tolower(.)))
     
-    # Find list column using new logic
+    # Find list column
     col_names <- tolower(names(data))
     
     if (!is.null(list_var()) && trimws(list_var()) != "") {
@@ -353,8 +353,8 @@ server <- function(input, output, session) {
     }
     
     # Group by the found column and summarize
-    data <- data %>%
-      group_by(.data[[list_col]]) %>%
+    data <- data |>
+      group_by(.data[[list_col]]) |>
       summarize(count = n(), .groups = 'drop')
     
     # Set up for plotting
@@ -385,12 +385,14 @@ server <- function(input, output, session) {
   # List duration plot
   output$listDurationPlot <- renderPlot({
     req(filtered_data())
-    data <- filtered_data()
     
-    col_names <- tolower(names(data))
+    data <- filtered_data() |>
+      rename_with(~ make.unique(tolower(.)))
+    
+    # Find list column
+    col_names <- names(data)
     
     if (!is.null(list_var()) && trimws(list_var()) != "") {
-      # try to match user-provided name case-insensitively
       user_col <- tolower(list_var())
       if (user_col %in% col_names) {
         list_col <- names(data)[which(col_names == user_col)[1]]
@@ -416,11 +418,15 @@ server <- function(input, output, session) {
     # Calculate average duration per list
     duration_data <- data |>
       mutate(
-        EventTime = EventTime / 1000,
-        duration = Results.reception.time - EventTime,
+        EventTime = eventtime / 1000,
+        duration = results.reception.time - EventTime,
         duration = round(duration / 60, 1)  # minutes
       ) |>
-      mutate(!!list_col := as.factor(.data[[list_col]]))
+      mutate(
+        !!list_col := as.factor(.data[[list_col]])   
+      )  
+              # !!list_col := as.factor(.data[[list_col]]),
+             # !!list_col := tools::toTitleCase(as.character(.data[[list_col]])))
     
     ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
       geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
@@ -499,12 +505,12 @@ output$conditionSummary <- DT::renderDataTable({
 
 # Conditions plot
 output$conditionPlot <- renderPlot({
-  req(filtered_data(), cond_var())  # also require cond_var reactive
+  req(filtered_data()) 
   
   data <- filtered_data() %>%
     rename_with(~ make.unique(tolower(.)))
   
-  # Find list column using new logic
+  # Find condition column using new logic
   col_names <- tolower(names(data))
   
   if (!is.null(cond_var()) && trimws(cond_var()) != "") {
@@ -516,10 +522,10 @@ output$conditionPlot <- renderPlot({
     }
   } else {
     # original fallback logic
-    list_col <- if ("list" %in% col_names) {
-      names(data)[which(col_names == "list")[1]]
-    } else if ("group" %in% col_names) {
-      names(data)[which(col_names == "group")[1]]
+    list_col <- if ("condition" %in% col_names) {
+      names(data)[which(col_names == "condition")[1]]
+    } else if ("treatment" %in% col_names) {
+      names(data)[which(col_names == "treatment")[1]]
     } else {
       NULL
     }
@@ -527,7 +533,7 @@ output$conditionPlot <- renderPlot({
   
   # Stop if no valid list column found
   if (is.null(list_col)) {
-    stop("No valid list column found.")
+    stop("No valid condition column found.")
   }
   
   # Group by the found column and summarize
@@ -573,14 +579,14 @@ output$conditionDurationPlot <- renderPlot({
     if (user_col %in% col_names) {
       list_col <- names(data)[which(col_names == user_col)[1]]
     } else {
-      list_col <- NULL  # or fallback to list/group logic
+      list_col <- NULL  
     }
   } else {
-    # original behaviour when text input is empty
-    list_col <- if ("list" %in% col_names) {
-      names(data)[which(col_names == "list")[1]]
-    } else if ("group" %in% col_names) {
-      names(data)[which(col_names == "group")[1]]
+    # fallback to logic
+    list_col <- if ("condition" %in% col_names) {
+      names(data)[which(col_names == "condition")[1]]
+    } else if ("treatment" %in% col_names) {
+      names(data)[which(col_names == "treatment")[1]]
     } else {
       NULL
     }
@@ -623,8 +629,12 @@ output$conditionDurationPlot <- renderPlot({
 # Optionally, input the list variable nae 
 
 cond_var <- reactive({
-  req(input$cond_var_name)
-  input$cond_var_name
+  val <- input$cond_var_name
+  if (is.null(val) || trimws(val) == "") {
+    return(NULL)
+  } else {
+    return(val)
+  }
 })
 
   
