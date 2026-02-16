@@ -261,31 +261,7 @@ server <- function(input, output, session) {
   })
 
 ## List info ---------------------------------------------------------------
-  
-  # Render list information: count of list frequency in data
-  # output$listSummary <- DT::renderDataTable({
-  #   req(filtered_data())
-  #   data <- filtered_data() |>
-  #     rename_with(~ make.unique(tolower(.))) %>%
-  #     {
-  #       if ("list" %in% names(.)) {
-  #         group_by(., list)
-  #       } else if ("group" %in% names(.)) {
-  #         group_by(., group)
-  #       } else {
-  #         stop("Neither 'list' nor 'group' column found in the data.")
-  #       }
-  #     } %>%
-  #     summarize(count = n())
-  #   if (ncol(data) > 0) {
-  #     # Using the psych package's describe function for summary statistics
-  #     summary_stats <- data
-  #     DT::datatable(summary_stats, rownames = TRUE)
-  #   } else {
-  #     # If no numeric columns, display a message
-  #     DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
-  #   }
-  # })
+
   
   output$listSummary <- DT::renderDataTable({
     req(filtered_data(), list_var())  # also require list_var reactive
@@ -389,47 +365,6 @@ server <- function(input, output, session) {
       )
   })
   
-  # output$listPlot <- renderPlot({
-  #   req(filtered_data())
-  #   data <- filtered_data()  %>%
-  #     rename_with(~ make.unique(tolower(.))) %>%
-  #     {
-  #       if ("list" %in% names(.)) {
-  #         group_by(., list)
-  #       } else if ("LIST" %in% names(.)) {
-  #         group_by(., group)
-  #       } else if ("group" %in% names(.)) {
-  #         group_by(., group)
-  #       } else {
-  #         stop("Neither 'list' nor 'group' column found in the data.")
-  #       }
-  #     } %>%
-  #     summarize(count = n(), .groups = 'drop')
-  #   
-  #   # Determine grouping column
-  #   grouping_column <- colnames(data)[1]
-  #   data[[grouping_column]] <- as.factor(data[[grouping_column]])
-  #   
-  #   # Generate the bar plot
-  #   ggplot(data, 
-  #          aes(x = .data[[grouping_column]], y = count)) +
-  #          # aes_string(x = grouping_column, y = "count")) +
-  #     geom_bar(stat = "identity", fill = "#342e1a") +
-  #     labs(
-  #       x = tools::toTitleCase(grouping_column),
-  #       y = "Row count",
-  #       title="Occurrences of each list in the data"
-  #     ) +
-  #     theme_bw() +
-  #     theme(
-  #       panel.background = element_rect(fill="#ebe5e0"),
-  #       plot.background = element_rect(fill="#ebe5e0", color=NA),
-  #       panel.grid.major = element_blank(),
-  #       legend.background = element_rect(fill="#ebe5e0"),
-  #       legend.box.background = element_rect(fill="#ebe5e0")
-  #     )
-  # })
-  
   
   # List duration plot
   output$listDurationPlot <- renderPlot({
@@ -461,23 +396,6 @@ server <- function(input, output, session) {
     if (is.null(list_col)) {
       stop("No valid list column found.")
     }
-    
-    # # Find list/group column (case insensitive)
-    # col_names <- tolower(names(data))
-    # list_col <- if ("list" %in% col_names) {
-    #   names(data)[which(col_names == "list")[1]]
-    # } else if ("group" %in% col_names) {
-    #   names(data)[which(col_names == "group")[1]]
-    # } else {
-    #   NULL
-    # }
-    # 
-    # if (is.null(list_col)) {
-    #   ggplot() +
-    #     annotate("text", x = 0.5, y = 0.5, label = "No 'list' or 'group' column found.", size = 5, hjust = 0.5) +
-    #     theme_void()
-    #   return()
-    # }
     
     # Calculate average duration per list
     duration_data <- data |>
