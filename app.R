@@ -278,50 +278,50 @@ server <- function(input, output, session) {
 
 ## List info ---------------------------------------------------------------
 
-  output$listSummary <- DT::renderDataTable({
-    req(filtered_data(), list_var())  # also require list_var reactive
-    
-    data <- filtered_data() |>
-      rename_with(~ make.unique(tolower(.)))
-    
-    # Find list column using new logic
-    col_names <- tolower(names(data))
-    
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
-      if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
-      } else {
-        list_col <- NULL
-      }
-    } else {
-      # original fallback logic
-      list_col <- if ("list" %in% col_names) {
-        names(data)[which(col_names == "list")[1]]
-      } else if ("group" %in% col_names) {
-        names(data)[which(col_names == "group")[1]]
-      } else {
-        NULL
-      }
-    }
-    
-    # Stop if no valid list column found
-    if (is.null(list_col)) {
-      return(DT::datatable(data.frame(Message = "No list column found."), rownames = FALSE))
-    }
-    
-    # Group by the found column and summarize
-    summary_data <- data |>
-      group_by(.data[[list_col]]) |>
-      summarize(count = n(), .groups = 'drop')
-    
-    DT::datatable(summary_data, rownames = TRUE)
-  })
-  
+  # output$listSummary <- DT::renderDataTable({
+  #   req(filtered_data(), list_var())  # also require list_var reactive
+  #   
+  #   data <- filtered_data() |>
+  #     rename_with(~ make.unique(tolower(.)))
+  #   
+  #   # Find list column using new logic
+  #   col_names <- tolower(names(data))
+  #   
+  #   if (!is.null(list_var()) && trimws(list_var()) != "") {
+  #     user_col <- tolower(list_var())
+  #     if (user_col %in% col_names) {
+  #       list_col <- names(data)[which(col_names == user_col)[1]]
+  #     } else {
+  #       list_col <- NULL
+  #     }
+  #   } else {
+  #     # original fallback logic
+  #     list_col <- if ("list" %in% col_names) {
+  #       names(data)[which(col_names == "list")[1]]
+  #     } else if ("group" %in% col_names) {
+  #       names(data)[which(col_names == "group")[1]]
+  #     } else {
+  #       NULL
+  #     }
+  #   }
+  #   
+  #   # Stop if no valid list column found
+  #   if (is.null(list_col)) {
+  #     return(DT::datatable(data.frame(Message = "No list column found."), rownames = FALSE))
+  #   }
+  #   
+  #   # Group by the found column and summarize
+  #   summary_data <- data |>
+  #     group_by(.data[[list_col]]) |>
+  #     summarize(count = n(), .groups = 'drop')
+  #   
+  #   DT::datatable(summary_data, rownames = TRUE)
+  # })
+  # 
   
   # List plot
   output$listPlot <- renderPlot({
-    req(filtered_data(), list_var())  # also require list_var reactive
+    req(filtered_data())
     
     data <- filtered_data() %>%
       rename_with(~ make.unique(tolower(.)))
@@ -337,7 +337,7 @@ server <- function(input, output, session) {
         list_col <- NULL
       }
     } else {
-      # original fallback logic
+      # fallback logic
       list_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
@@ -395,10 +395,10 @@ server <- function(input, output, session) {
       if (user_col %in% col_names) {
         list_col <- names(data)[which(col_names == user_col)[1]]
       } else {
-        list_col <- NULL  # or fallback to list/group logic
+        list_col <- NULL
       }
     } else {
-      # original behaviour when text input is empty
+      # fallback logic
       list_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
@@ -424,7 +424,6 @@ server <- function(input, output, session) {
     
     ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
       geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
-      # geom_col(fill = "#7c6f42") + 794729
       labs(
         title = "Average duration per list",
         y = "Time in minutes",
@@ -442,20 +441,23 @@ server <- function(input, output, session) {
   })
 
   
-# Optionally, input the list variable nae 
-  
+# Optionally, input the list variable 
+
 list_var <- reactive({
-    req(input$list_var_name)
-    input$list_var_name
-  })
-  
-  
+  val <- input$list_var_name
+  if (is.null(val) || trimws(val) == "") {
+    return(NULL)
+  } else {
+    return(val)
+  }
+})
+
 
 ## Condition info ---------------------------------------------------------------
 
 
 output$conditionSummary <- DT::renderDataTable({
-  req(filtered_data(), cond_var())  # also require cond_var reactive
+  req(filtered_data())
   
   data <- filtered_data() |>
     rename_with(~ make.unique(tolower(.)))
