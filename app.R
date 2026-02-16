@@ -118,21 +118,24 @@ ui <- fluidPage(
                  hr(),
                  h3("List overview"),
                  fluidRow(
+                   column(width=12,
+                          textInput(
+                   inputId = "list_var_name",
+                   label   = "Add your list/group variable name here:",
+                   value   = ""
+                 ))),
+                 fluidRow(
                    column(width = 6,
                           plotOutput("listPlot")
                    ),
                    column(width = 6,
-                          textInput(
-                            inputId = "list_var_name",
-                            label   = "Add your list/group variable name here:",
-                            value   = ""
-                          ),
-                          DT::dataTableOutput("listSummary")
+                          plotOutput("listDurationPlot")
+                          # DT::dataTableOutput("listSummary")
                    )
-                 ),
-                 fluidRow(
-                   plotOutput("listDurationPlot")
-                 )
+                 )#,
+                 # fluidRow(
+                 #   plotOutput("listDurationPlot")
+                 # )
         ),
 
 ### Participant overview ----------------------------------------------------
@@ -350,6 +353,7 @@ server <- function(input, output, session) {
     ggplot(data, 
            aes(x = .data[[grouping_column]], y = count)) +
       geom_bar(stat = "identity", fill = "#342e1a") +
+      geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
       labs(
         x = tools::toTitleCase(grouping_column),
         y = "Row count",
@@ -404,13 +408,11 @@ server <- function(input, output, session) {
         duration = Results.reception.time - EventTime,
         duration = round(duration / 60, 1)  # minutes
       ) |>
-      group_by(.data[[list_col]]) |>
-      summarise(mean_duration = mean(duration, na.rm = TRUE), .groups = "drop") |>
       mutate(!!list_col := as.factor(.data[[list_col]]))
     
-    ggplot(duration_data, aes(y = mean_duration, x = .data[[list_col]])) +
-      geom_boxplot(fill = "#7c6f42", outlier.color = "#342e1a", outlier.size = 2) +
-      # geom_col(fill = "#7c6f42") +
+    ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
+      geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
+      # geom_col(fill = "#7c6f42") + 794729
       labs(
         title = "Average duration per list",
         y = "Time in minutes",
