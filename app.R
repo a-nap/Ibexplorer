@@ -6,7 +6,7 @@ library(psych)
 library(DT)
 library(bslib)
 
-options(shiny.maxRequestSize = 30*1024^2) 
+# options(shiny.maxRequestSize = 30*1024^2) 
 
 ibextheme <- bs_theme(
   fg = "#201010", 
@@ -687,7 +687,7 @@ cond_var <- reactive({
 # Participant count
 output$participantPlotUI <- renderUI({
   n <- nrow(filtered_data())  # number of participants
-  max_height <- 1000          # cap the height at 1000px
+  max_height <- 700          # cap the height at 1000px
   height <- min(50 + n * 5, max_height)  # 5px per participant + base
   
   plotOutput("participantPlot", height = paste0(height, "px"))
@@ -896,3 +896,8 @@ output$participantPlotUI <- renderUI({
 # RUN ---------------------------------------------------------------------
 # Run the application 
 shinyApp(ui = ui, server = server)
+
+
+# TODO --------------------------------------------------------------------
+
+# FIXME the participant plot is too large for small samples. Make smaller
