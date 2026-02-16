@@ -183,10 +183,29 @@ ui <- fluidPage(
 
 - Upload a raw PCIbex CSV results file.
 - Click the **Submit** button to process the file.
-- (Optional) Select the columns to keep.
+- (Optional) Select the columns you want to include.
 - (Optional) Enter a search phrase to filter rows.
-- View the processed data in the preview tab. 
+- View the processed data in the **Table Preview** tab. 
 - Download the filtered dataset by clicking **Download formatted CSV**.
+
+### Plots
+
+**List / Group plots**
+
+- *List occurrences* bar plot shows how many times each list or group appears in the data. Should probably be the same number for each list.
+- *Average duration* boxplot shows the duration in minutes of each trial for each list/group. Helps identify lists which take longer or shorter on average.
+- If the app does not detect your list variable, you can specify it in the text field.
+
+**Condition plots**
+
+- *Condition occurrences* bar plot showing how many trials are in each condition. Should probably be the same number for each condition.
+- *Average duration* boxplot shows the trial durations for each condition. Helps identify experimental conditions which tend to be longer or shorter.
+- If the app does not detect your condition variable, you can specify it in the text field.
+
+**Participant plots**
+
+- *Participant counts* bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
+- *Participant durations* histogram shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. Dashed vertical line: mean duration across all participants.
 
 ### Troubleshooting
 
