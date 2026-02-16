@@ -102,15 +102,16 @@ ui <- fluidPage(
     mainPanel(
 
 ### Table preview -----------------------------------------------------------
-
+# tabPanel(title=tagList(,"Stimuli file"),
+         
       tabsetPanel(
-        tabPanel("Table Preview",
+        tabPanel(title=tagList(icon("table"),"Table Preview"),
                  DT::dataTableOutput("preview")
         ),
 
 ### Data summary ------------------------------------------------------------
 
-        tabPanel("Data summary",
+        tabPanel(title=tagList(icon("chart-simple"),"Data summary"),
                  h3("Numerical data overview"),
                  DT::dataTableOutput("dataSummary"),
                  hr(),
@@ -130,7 +131,7 @@ ui <- fluidPage(
 
 ### Participant overview ----------------------------------------------------
 
-        tabPanel("Participant overview",
+        tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
                    column(width = 7,
                           plotOutput("participantPlot")
@@ -151,7 +152,7 @@ ui <- fluidPage(
 
 ### Usage guide -------------------------------------------------------------
 
-        tabPanel("Usage Guide",
+        tabPanel(title=tagList(icon("circle-info"),"Usage Guide"),
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
 
@@ -523,8 +524,6 @@ server <- function(input, output, session) {
 }
 
 
-
 # RUN ---------------------------------------------------------------------
-
 # Run the application 
 shinyApp(ui = ui, server = server)
