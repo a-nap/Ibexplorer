@@ -263,29 +263,70 @@ server <- function(input, output, session) {
 ## List info ---------------------------------------------------------------
   
   # Render list information: count of list frequency in data
+  # output$listSummary <- DT::renderDataTable({
+  #   req(filtered_data())
+  #   data <- filtered_data() |>
+  #     rename_with(~ make.unique(tolower(.))) %>%
+  #     {
+  #       if ("list" %in% names(.)) {
+  #         group_by(., list)
+  #       } else if ("group" %in% names(.)) {
+  #         group_by(., group)
+  #       } else {
+  #         stop("Neither 'list' nor 'group' column found in the data.")
+  #       }
+  #     } %>%
+  #     summarize(count = n())
+  #   if (ncol(data) > 0) {
+  #     # Using the psych package's describe function for summary statistics
+  #     summary_stats <- data
+  #     DT::datatable(summary_stats, rownames = TRUE)
+  #   } else {
+  #     # If no numeric columns, display a message
+  #     DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+  #   }
+  # })
+  
   output$listSummary <- DT::renderDataTable({
-    req(filtered_data())
+    req(filtered_data(), list_var())  # also require list_var reactive
+    
     data <- filtered_data() |>
-      rename_with(~ make.unique(tolower(.))) %>%
-      {
-        if ("list" %in% names(.)) {
-          group_by(., list)
-        } else if ("group" %in% names(.)) {
-          group_by(., group)
-        } else {
-          stop("Neither 'list' nor 'group' column found in the data.")
-        }
-      } %>%
-      summarize(count = n())
-    if (ncol(data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- data
-      DT::datatable(summary_stats, rownames = TRUE)
+      rename_with(~ make.unique(tolower(.)))
+    
+    # Find list column using new logic
+    col_names <- tolower(names(data))
+    
+    if (!is.null(list_var()) && trimws(list_var()) != "") {
+      user_col <- tolower(list_var())
+      if (user_col %in% col_names) {
+        list_col <- names(data)[which(col_names == user_col)[1]]
+      } else {
+        list_col <- NULL
+      }
     } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+      # original fallback logic
+      list_col <- if ("list" %in% col_names) {
+        names(data)[which(col_names == "list")[1]]
+      } else if ("group" %in% col_names) {
+        names(data)[which(col_names == "group")[1]]
+      } else {
+        NULL
+      }
     }
+    
+    # Stop if no valid list column found
+    if (is.null(list_col)) {
+      return(DT::datatable(data.frame(Message = "No list column found."), rownames = FALSE))
+    }
+    
+    # Group by the found column and summarize
+    summary_data <- data |>
+      group_by(.data[[list_col]]) |>
+      summarize(count = n(), .groups = 'drop')
+    
+    DT::datatable(summary_data, rownames = TRUE)
   })
+  
   
   # List plot
   output$listPlot <- renderPlot({
