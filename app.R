@@ -64,6 +64,7 @@ ui <- fluidPage(
 ## Sidebar -----------------------------------------------------------------
     
     sidebarPanel(
+      width = 3,
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
@@ -121,6 +122,11 @@ ui <- fluidPage(
                           plotOutput("listPlot")
                    ),
                    column(width = 6,
+                          textInput(
+                            inputId = "list_var_name",
+                            label   = "Add your list/group variable name here:",
+                            value   = ""
+                          ),
                           DT::dataTableOutput("listSummary")
                    )
                  ),
@@ -283,68 +289,154 @@ server <- function(input, output, session) {
   
   # List plot
   output$listPlot <- renderPlot({
-    req(filtered_data())
-    data <- filtered_data()  %>%
-      rename_with(~ make.unique(tolower(.))) %>%
-      {
-        if ("list" %in% names(.)) {
-          group_by(., list)
-        } else if ("LIST" %in% names(.)) {
-          group_by(., group)
-        } else if ("group" %in% names(.)) {
-          group_by(., group)
-        } else {
-          stop("Neither 'list' nor 'group' column found in the data.")
-        }
-      } %>%
+    req(filtered_data(), list_var())  # also require list_var reactive
+    
+    data <- filtered_data() %>%
+      rename_with(~ make.unique(tolower(.)))
+    
+    # Find list column using new logic
+    col_names <- tolower(names(data))
+    
+    if (!is.null(list_var()) && trimws(list_var()) != "") {
+      user_col <- tolower(list_var())
+      if (user_col %in% col_names) {
+        list_col <- names(data)[which(col_names == user_col)[1]]
+      } else {
+        list_col <- NULL
+      }
+    } else {
+      # original fallback logic
+      list_col <- if ("list" %in% col_names) {
+        names(data)[which(col_names == "list")[1]]
+      } else if ("group" %in% col_names) {
+        names(data)[which(col_names == "group")[1]]
+      } else {
+        NULL
+      }
+    }
+    
+    # Stop if no valid list column found
+    if (is.null(list_col)) {
+      stop("No valid list column found.")
+    }
+    
+    # Group by the found column and summarize
+    data <- data %>%
+      group_by(.data[[list_col]]) %>%
       summarize(count = n(), .groups = 'drop')
     
-    # Determine grouping column
-    grouping_column <- colnames(data)[1]
+    # Set up for plotting
+    grouping_column <- list_col
     data[[grouping_column]] <- as.factor(data[[grouping_column]])
     
     # Generate the bar plot
     ggplot(data, 
            aes(x = .data[[grouping_column]], y = count)) +
-           # aes_string(x = grouping_column, y = "count")) +
       geom_bar(stat = "identity", fill = "#342e1a") +
       labs(
         x = tools::toTitleCase(grouping_column),
         y = "Row count",
-        title="Occurrences of each list in the data"
+        title = "Occurrences of each list in the data"
       ) +
       theme_bw() +
       theme(
-        panel.background = element_rect(fill="#ebe5e0"),
-        plot.background = element_rect(fill="#ebe5e0", color=NA),
+        panel.background = element_rect(fill = "#ebe5e0"),
+        plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
-        legend.background = element_rect(fill="#ebe5e0"),
-        legend.box.background = element_rect(fill="#ebe5e0")
+        legend.background = element_rect(fill = "#ebe5e0"),
+        legend.box.background = element_rect(fill = "#ebe5e0")
       )
   })
   
+  # output$listPlot <- renderPlot({
+  #   req(filtered_data())
+  #   data <- filtered_data()  %>%
+  #     rename_with(~ make.unique(tolower(.))) %>%
+  #     {
+  #       if ("list" %in% names(.)) {
+  #         group_by(., list)
+  #       } else if ("LIST" %in% names(.)) {
+  #         group_by(., group)
+  #       } else if ("group" %in% names(.)) {
+  #         group_by(., group)
+  #       } else {
+  #         stop("Neither 'list' nor 'group' column found in the data.")
+  #       }
+  #     } %>%
+  #     summarize(count = n(), .groups = 'drop')
+  #   
+  #   # Determine grouping column
+  #   grouping_column <- colnames(data)[1]
+  #   data[[grouping_column]] <- as.factor(data[[grouping_column]])
+  #   
+  #   # Generate the bar plot
+  #   ggplot(data, 
+  #          aes(x = .data[[grouping_column]], y = count)) +
+  #          # aes_string(x = grouping_column, y = "count")) +
+  #     geom_bar(stat = "identity", fill = "#342e1a") +
+  #     labs(
+  #       x = tools::toTitleCase(grouping_column),
+  #       y = "Row count",
+  #       title="Occurrences of each list in the data"
+  #     ) +
+  #     theme_bw() +
+  #     theme(
+  #       panel.background = element_rect(fill="#ebe5e0"),
+  #       plot.background = element_rect(fill="#ebe5e0", color=NA),
+  #       panel.grid.major = element_blank(),
+  #       legend.background = element_rect(fill="#ebe5e0"),
+  #       legend.box.background = element_rect(fill="#ebe5e0")
+  #     )
+  # })
   
   
+  # List duration plot
   output$listDurationPlot <- renderPlot({
     req(filtered_data())
     data <- filtered_data()
     
-    # Find list/group column (case insensitive)
     col_names <- tolower(names(data))
-    list_col <- if ("list" %in% col_names) {
-      names(data)[which(col_names == "list")[1]]
-    } else if ("group" %in% col_names) {
-      names(data)[which(col_names == "group")[1]]
+    
+    if (!is.null(list_var()) && trimws(list_var()) != "") {
+      # try to match user-provided name case-insensitively
+      user_col <- tolower(list_var())
+      if (user_col %in% col_names) {
+        list_col <- names(data)[which(col_names == user_col)[1]]
+      } else {
+        list_col <- NULL  # or fallback to list/group logic
+      }
     } else {
-      NULL
+      # original behaviour when text input is empty
+      list_col <- if ("list" %in% col_names) {
+        names(data)[which(col_names == "list")[1]]
+      } else if ("group" %in% col_names) {
+        names(data)[which(col_names == "group")[1]]
+      } else {
+        NULL
+      }
     }
     
+    # Stop if no valid list column found
     if (is.null(list_col)) {
-      ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "No 'list' or 'group' column found.", size = 5, hjust = 0.5) +
-        theme_void()
-      return()
+      stop("No valid list column found.")
     }
+    
+    # # Find list/group column (case insensitive)
+    # col_names <- tolower(names(data))
+    # list_col <- if ("list" %in% col_names) {
+    #   names(data)[which(col_names == "list")[1]]
+    # } else if ("group" %in% col_names) {
+    #   names(data)[which(col_names == "group")[1]]
+    # } else {
+    #   NULL
+    # }
+    # 
+    # if (is.null(list_col)) {
+    #   ggplot() +
+    #     annotate("text", x = 0.5, y = 0.5, label = "No 'list' or 'group' column found.", size = 5, hjust = 0.5) +
+    #     theme_void()
+    #   return()
+    # }
     
     # Calculate average duration per list
     duration_data <- data |>
@@ -376,6 +468,17 @@ server <- function(input, output, session) {
       )
   })
 
+  
+# FIXME 
+  
+list_var <- reactive({
+    req(input$list_var_name)
+    input$list_var_name
+  })
+  
+  
+  
+  
 # Participant info --------------------------------------------------------
 
   # Render participant information: count of participants in data
