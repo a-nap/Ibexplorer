@@ -130,12 +130,8 @@ ui <- fluidPage(
                    ),
                    column(width = 6,
                           plotOutput("listDurationPlot")
-                          # DT::dataTableOutput("listSummary")
                    )
-                 )#,
-                 # fluidRow(
-                 #   plotOutput("listDurationPlot")
-                 # )
+                 )
         ),
 
 ### Participant overview ----------------------------------------------------
