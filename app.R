@@ -64,7 +64,7 @@ ui <- fluidPage(
 ## Sidebar -----------------------------------------------------------------
     
     sidebarPanel(
-      width = 3,
+      width = 2,
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
@@ -156,7 +156,8 @@ ui <- fluidPage(
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
                    column(width = 7,
-                          plotOutput("participantPlot")
+                          # plotOutput("participantPlot")
+                          uiOutput("participantPlotUI")
                    ),
                    column(width = 5,
                           DT::dataTableOutput("participantSummary")
@@ -164,7 +165,9 @@ ui <- fluidPage(
                  ),
                  fluidRow(
                    column(width = 7,
-                          plotOutput("participantDurationPlot")
+                          # uiOutput("participantDurationPlotUI")
+                          # plotOutput("participantDurationPlot")
+                          plotOutput("participantDurationHistogramPlot")
                    ),
                    column(width = 5,
                           DT::dataTableOutput("participantDuration")
@@ -178,7 +181,7 @@ ui <- fluidPage(
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
 
-- Upload a unprocessed PCIbex output CSV file.
+- Upload a raw PCIbex CSV results file.
 - Click the **Submit** button to process the file.
 - (Optional) Select the columns to keep.
 - (Optional) Enter a search phrase to filter rows.
@@ -425,9 +428,7 @@ server <- function(input, output, session) {
       mutate(
         !!list_col := as.factor(.data[[list_col]])   
       )  
-              # !!list_col := as.factor(.data[[list_col]]),
-             # !!list_col := tools::toTitleCase(as.character(.data[[list_col]])))
-    
+
     ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
       geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
       labs(
@@ -569,21 +570,25 @@ output$conditionPlot <- renderPlot({
 # Condition duration plot
 output$conditionDurationPlot <- renderPlot({
   req(filtered_data())
-  data <- filtered_data()
   
-  col_names <- tolower(names(data))
+  data <- filtered_data() |>
+    rename_with(~ make.unique(tolower(.)))
+  
+  # Find list column
+  col_names <- names(data)
+  
   
   if (!is.null(cond_var()) && trimws(cond_var()) != "") {
     # try to match user-provided name case-insensitively
     user_col <- tolower(cond_var())
     if (user_col %in% col_names) {
-      list_col <- names(data)[which(col_names == user_col)[1]]
+      cond_col <- names(data)[which(col_names == user_col)[1]]
     } else {
-      list_col <- NULL  
+      cond_col <- NULL  
     }
   } else {
     # fallback to logic
-    list_col <- if ("condition" %in% col_names) {
+    cond_col <- if ("condition" %in% col_names) {
       names(data)[which(col_names == "condition")[1]]
     } else if ("treatment" %in% col_names) {
       names(data)[which(col_names == "treatment")[1]]
@@ -600,19 +605,21 @@ output$conditionDurationPlot <- renderPlot({
   # Calculate average duration per condition
   duration_data <- data |>
     mutate(
-      EventTime = EventTime / 1000,
-      duration = Results.reception.time - EventTime,
+      EventTime = eventtime / 1000,
+      duration = results.reception.time - EventTime,
       duration = round(duration / 60, 1)  # minutes
     ) |>
-    mutate(!!list_col := as.factor(.data[[list_col]]))
-  
-  ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
+    mutate(
+      !!cond_col := as.factor(.data[[cond_col]])   
+    )  
+
+  ggplot(duration_data, aes(y = duration, x = .data[[cond_col]])) +
     geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
     # geom_col(fill = "#7c6f42") + 794729
     labs(
       title = "Average duration per condition",
       y = "Time in minutes",
-      x = tools::toTitleCase(list_col)
+      x = tools::toTitleCase(cond_col)
     ) +
     theme_bw() +
     theme(
@@ -640,6 +647,8 @@ cond_var <- reactive({
   
 # Participant info --------------------------------------------------------
 
+
+
   # Render participant information: count of participants in data
   output$participantSummary <- DT::renderDataTable({
     req(filtered_data())
@@ -655,6 +664,16 @@ cond_var <- reactive({
     }
   })
   
+
+# Participant count
+output$participantPlotUI <- renderUI({
+  n <- nrow(filtered_data())  # number of participants
+  max_height <- 1000          # cap the height at 1000px
+  height <- min(50 + n * 5, max_height)  # 5px per participant + base
+  
+  plotOutput("participantPlot", height = paste0(height, "px"))
+})
+
   output$participantPlot <- renderPlot({
     req(filtered_data())
     data <- filtered_data()
@@ -667,7 +686,7 @@ cond_var <- reactive({
         ungroup()
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#7c6f42") +
+        geom_bar(stat = "identity", fill="#342e1a") +
         labs(
           title = "Occurrences of each participant in the data",
           y = "Participant IP",
@@ -716,9 +735,78 @@ cond_var <- reactive({
     }
   })
   
+  # Duration histogram
+  
+  output$participantDurationHistogramPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      
+      # Calculate max duration per participant
+      duration_data <- data |>
+        mutate(
+          EventTime = EventTime / 1000,
+          duration = Results.reception.time - EventTime,
+          duration = round(duration / 60, 1)  # minutes
+        ) |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(duration = max(duration, na.rm = TRUE)) |>
+        ungroup()
+      
+      # Compute mean duration
+      mean_duration <- mean(duration_data$duration, na.rm = TRUE)
+      
+      # Histogram
+      ggplot(duration_data, aes(x = duration)) +
+        geom_histogram(
+          binwidth = 5,  # 1 minute per bin, adjust as needed
+          fill = "#342e1a",
+          color = "#ebe5e0"
+        ) +
+        geom_vline(
+          xintercept = mean_duration,
+          color = "#7c6f42",
+          linewidth = 1,
+          linetype = "dashed"
+        ) +
+        labs(
+          title = "Distribution of participant durations",
+          x = "Time in minutes",
+          y = "Number of participants"
+        ) +
+        theme_bw() +
+        theme(
+          panel.background = element_rect(fill = "#ebe5e0"),
+          plot.background = element_rect(fill = "#ebe5e0", color = NA),
+          panel.grid.major = element_blank(),
+          legend.background = element_rect(fill = "#ebe5e0"),
+          legend.box.background = element_rect(fill = "#ebe5e0")
+        )
+      
+    } else {
+      # Message if column missing
+      ggplot() +
+        annotate(
+          "text", x = 0.5, y = 0.5, 
+          label = "Participant ID column not found in the data.", 
+          size = 5, hjust = 0.5
+        ) +
+        theme_void()
+    }
+  })
+  
   
   # Experiment duration per participant
-  # Calculate how long participants took per experiment
+
+  output$participantDurationPlotUI <- renderUI({
+    n <- nrow(filtered_data())  # number of participants
+    max_height <- 1000          # cap the height at 1000px
+    height <- min(50 + n * 5, max_height)  # 5px per participant + base
+    
+    plotOutput("participantDurationPlot", height = paste0(height, "px"))
+  })
+  
   output$participantDurationPlot <- renderPlot({
     req(filtered_data())
     data <- filtered_data()
