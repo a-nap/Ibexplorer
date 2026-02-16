@@ -51,16 +51,25 @@ read_pcibex <- function(filepath,
   }
 }
 
+# tabPanel(title=tagList(icon("code"),"Script"),
+
+
+# UI ----------------------------------------------------------------------
+
 # Define UI for the application
 ui <- fluidPage(
   theme = ibextheme,
   sidebarLayout(
+
+## Sidebar -----------------------------------------------------------------
+    
     sidebarPanel(
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
-      
-      # File selector
+
+### File selector -----------------------------------------------------------
+
       fileInput(inputId = "raw.file",
                 accept = c("text", "text/plain", ".txt", ".TXT", ".csv", ".CSV"),
                 label = "Upload a CSV file (max. 30 MB)",
@@ -72,22 +81,35 @@ ui <- fluidPage(
                      class = "btn-secondary btn-block",
                      icon = icon("download")),
       hr(),
-      # Column selector
+
+### Column selector ---------------------------------------------------------
+
       p(strong("Include only these columns:")),
       uiOutput("column_selector"),
       hr(),
-      # Search phrase input for filtering rows
+
+### Search phrase input for filtering rows ----------------------------------
+
       p(strong("Include only rows with this exact phrase:")),
       textInput(inputId = "search_phrase",
                 label = "",
                 value = ""),
       helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
     ),
+
+## Main panel --------------------------------------------------------------
+
     mainPanel(
+
+### Table preview -----------------------------------------------------------
+
       tabsetPanel(
         tabPanel("Table Preview",
                  DT::dataTableOutput("preview")
         ),
+
+### Data summary ------------------------------------------------------------
+
         tabPanel("Data summary",
                  h3("Numerical data overview"),
                  DT::dataTableOutput("dataSummary"),
@@ -105,6 +127,9 @@ ui <- fluidPage(
                    plotOutput("listDurationPlot")
                  )
         ),
+
+### Participant overview ----------------------------------------------------
+
         tabPanel("Participant overview",
                  fluidRow(
                    column(width = 7,
@@ -123,6 +148,9 @@ ui <- fluidPage(
                    )
                  )
         ),
+
+### Usage guide -------------------------------------------------------------
+
         tabPanel("Usage Guide",
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
@@ -153,8 +181,15 @@ Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
   )
 )
 
+
+# SERVER ------------------------------------------------------------------
+
 # Define server logic
 server <- function(input, output, session) {
+  
+
+## Data input processing ---------------------------------------------------
+
   # Process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
     inFile <- input$raw.file
@@ -170,7 +205,7 @@ server <- function(input, output, session) {
                        choices = names(mydata()),
                        selected = names(mydata()))
   })
-  
+
   # Reactive expression for filtered data based on column selection and search phrase
   filtered_data <- reactive({
     req(mydata())
@@ -188,6 +223,9 @@ server <- function(input, output, session) {
     return(data)
   })
   
+
+## Table preview -----------------------------------------------------------
+
   # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
   output$preview <- DT::renderDataTable({
     req(filtered_data())
@@ -214,6 +252,8 @@ server <- function(input, output, session) {
       DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
     }
   })
+
+## List info ---------------------------------------------------------------
   
   # Render list information: count of list frequency in data
   output$listSummary <- DT::renderDataTable({
@@ -240,6 +280,7 @@ server <- function(input, output, session) {
     }
   })
   
+  # List plot
   output$listPlot <- renderPlot({
     req(filtered_data())
     data <- filtered_data()  %>%
@@ -281,132 +322,7 @@ server <- function(input, output, session) {
       )
   })
   
-  # Render participant information: count of participants in data
-  output$participantSummary <- DT::renderDataTable({
-    req(filtered_data())
-    data <- filtered_data()
-    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
-    if (ncol(participant_data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- participant_data
-      DT::datatable(summary_stats, rownames = TRUE)
-    } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
-    }
-  })
   
-  output$participantPlot <- renderPlot({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    # Ensure the participant ID column exists
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      participant_data <- data |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarize(count = n()) |>
-        ungroup()
-      
-      ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#7c6f42") +
-        labs(
-          title = "Occurences of each participant in the data",
-          y = "Participant IP",
-          x = "Row count"
-        ) +
-        theme_bw() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        theme(
-          panel.background = element_rect(fill="#ebe5e0"),
-          plot.background = element_rect(fill="#ebe5e0", color=NA),
-          panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
-        )
-    } else {
-      # Display a message if the participant ID column is missing
-      ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
-        theme_void()
-    }
-  })
-  
-  output$participantDuration <- DT::renderDataTable({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    duration_data <- data |>
-      mutate(
-        EventTime = EventTime/1000,
-        duration = Results.reception.time - EventTime,
-        duration = round(duration/60, 1)
-      ) |>
-      group_by(MD5.hash.of.participant.s.IP.address) |>
-      summarise(duration = max(duration)) |>
-      ungroup()
-    
-    # participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
-    if (ncol(duration_data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- duration_data
-      DT::datatable(summary_stats, rownames = TRUE)
-    } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No duration data found."), rownames = FALSE)
-    }
-  })
-  
-  # Calculate how long participants took per experiment
-  output$participantDurationPlot <- renderPlot({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      duration_data <- data |>
-        mutate(
-        EventTime = EventTime/1000,
-               duration = Results.reception.time - EventTime,
-               duration = round(duration/60, 1)
-          ) |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(duration = max(duration)) |>
-        ungroup()
-      
-      mean_data <- duration_data |>
-        summarise(mean_duration = mean(duration, na.rm = TRUE))
-      
-      ggplot(duration_data) +
-        geom_vline(
-          data = mean_data,
-          aes(xintercept = mean_duration),
-          color = "#342e1a",
-          linewidth = 1,
-          inherit.aes = FALSE
-        ) +
-        geom_bar(aes(y = MD5.hash.of.participant.s.IP.address, x = duration),
-                 stat = "identity", fill="#7c6f42") +
-        labs(
-          title = "Duration of the experiment",
-          y = "Participant IP",
-          x = "Time in minutes"
-        ) +
-        theme_bw() +
-        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-        theme(
-          panel.background = element_rect(fill="#ebe5e0"),
-          plot.background = element_rect(fill="#ebe5e0", color=NA),
-          panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
-        )
-    } else {
-      # Display a message if the participant ID column is missing
-      ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
-        theme_void()
-    }
-    })
   
   output$listDurationPlot <- renderPlot({
     req(filtered_data())
@@ -458,22 +374,141 @@ server <- function(input, output, session) {
         legend.box.background = element_rect(fill = "#ebe5e0")
       )
   })
+
+# Participant info --------------------------------------------------------
+
+  # Render participant information: count of participants in data
+  output$participantSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    if (ncol(participant_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- participant_data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+  
+  output$participantPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    # Ensure the participant ID column exists
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      participant_data <- data |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarize(count = n()) |>
+        ungroup()
+      
+      ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
+        geom_bar(stat = "identity", fill="#7c6f42") +
+        labs(
+          title = "Occurrences of each participant in the data",
+          y = "Participant IP",
+          x = "Row count"
+        ) +
+        theme_bw() +
+        theme(
+          axis.text.x = element_text(angle = 90, hjust = 1),
+          panel.background = element_rect(fill="#ebe5e0"),
+          plot.background = element_rect(fill="#ebe5e0", color=NA),
+          panel.grid.major = element_blank(),
+          legend.background = element_rect(fill="#ebe5e0"),
+          legend.box.background = element_rect(fill="#ebe5e0")
+        )
+    } else {
+      # Display a message if the participant ID column is missing
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
+        theme_void()
+    }
+  })
+  
+  # Duration table
+  output$participantDuration <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    duration_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,
+        duration = Results.reception.time - EventTime,
+        duration = round(duration/60, 1)
+      ) |>
+      group_by(MD5.hash.of.participant.s.IP.address) |>
+      summarise(duration = max(duration)) |>
+      ungroup()
+    
+    # participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    if (ncol(duration_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- duration_data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No duration data found."), rownames = FALSE)
+    }
+  })
   
   
+  # Experiment duration per participant
+  # Calculate how long participants took per experiment
+  output$participantDurationPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      duration_data <- data |>
+        mutate(
+        EventTime = EventTime/1000,
+               duration = Results.reception.time - EventTime,
+               duration = round(duration/60, 1)
+          ) |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(duration = max(duration)) |>
+        ungroup()
+      
+      mean_data <- duration_data |>
+        summarise(mean_duration = mean(duration, na.rm = TRUE))
+      
+      ggplot(duration_data) +
+        geom_vline(
+          data = mean_data,
+          aes(xintercept = mean_duration),
+          color = "#342e1a",
+          linewidth = 1,
+          inherit.aes = FALSE
+        ) +
+        geom_bar(aes(y = MD5.hash.of.participant.s.IP.address, x = duration),
+                 stat = "identity", fill="#7c6f42") +
+        labs(
+          title = "Duration of the experiment",
+          y = "Participant IP",
+          x = "Time in minutes"
+        ) +
+        theme_bw() +
+        theme(
+          # axis.text.x = element_text(angle = 90, hjust = 1),
+          panel.background = element_rect(fill="#ebe5e0"),
+          plot.background = element_rect(fill="#ebe5e0", color=NA),
+          panel.grid.major = element_blank(),
+          legend.background = element_rect(fill="#ebe5e0"),
+          legend.box.background = element_rect(fill="#ebe5e0")
+        )
+    } else {
+      # Display a message if the participant ID column is missing
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
+        theme_void()
+    }
+    })
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+## Data download -----------------------------------------------------------
   
   # Download handler: writes the filtered data as a CSV file
   output$downloadData <- downloadHandler(
@@ -486,6 +521,10 @@ server <- function(input, output, session) {
     }
   )
 }
+
+
+
+# RUN ---------------------------------------------------------------------
 
 # Run the application 
 shinyApp(ui = ui, server = server)
