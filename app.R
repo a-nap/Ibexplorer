@@ -100,15 +100,26 @@ ui <- fluidPage(
                    column(width = 6,
                           DT::dataTableOutput("listSummary")
                    )
+                 ),
+                 fluidRow(
+                   plotOutput("listDurationPlot")
                  )
         ),
         tabPanel("Participant overview",
                  fluidRow(
-                   column(width = 6,
+                   column(width = 7,
                           plotOutput("participantPlot")
                    ),
-                   column(width = 6,
+                   column(width = 5,
                           DT::dataTableOutput("participantSummary")
+                   )
+                 ),
+                 fluidRow(
+                   column(width = 7,
+                          plotOutput("participantDurationPlot")
+                   ),
+                   column(width = 5,
+                          DT::dataTableOutput("participantDuration")
                    )
                  )
         ),
@@ -120,7 +131,7 @@ ui <- fluidPage(
 - Click the **Submit** button to process the file.
 - (Optional) Select the columns to keep.
 - (Optional) Enter a search phrase to filter rows.
-- View the processed data in the preview tab.
+- View the processed data in the preview tab. 
 - Download the filtered dataset by clicking **Download formatted CSV**.
 
 ### Troubleshooting
@@ -129,7 +140,7 @@ Follow these steps if you're having trouble uploading and processing your data.
 
 - Ensure that your file is in CSV format.
 - Check that the file size does not exceed 30MB.
-- If no data appears, verify that the correct columns are selected.
+- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time.', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
 - The explorer works only with the unmodified PCIbex results file.
 - Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
@@ -248,9 +259,12 @@ server <- function(input, output, session) {
     
     # Determine grouping column
     grouping_column <- colnames(data)[1]
+    data[[grouping_column]] <- as.factor(data[[grouping_column]])
     
     # Generate the bar plot
-    ggplot(data, aes_string(x = grouping_column, y = "count")) +
+    ggplot(data, 
+           aes(x = .data[[grouping_column]], y = count)) +
+           # aes_string(x = grouping_column, y = "count")) +
       geom_bar(stat = "identity", fill = "#342e1a") +
       labs(
         x = tools::toTitleCase(grouping_column),
@@ -266,7 +280,6 @@ server <- function(input, output, session) {
         legend.box.background = element_rect(fill="#ebe5e0")
       )
   })
-  
   
   # Render participant information: count of participants in data
   output$participantSummary <- DT::renderDataTable({
@@ -295,7 +308,7 @@ server <- function(input, output, session) {
         ungroup()
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#342e1a") +
+        geom_bar(stat = "identity", fill="#7c6f42") +
         labs(
           title = "Occurences of each participant in the data",
           y = "Participant IP",
@@ -317,6 +330,150 @@ server <- function(input, output, session) {
         theme_void()
     }
   })
+  
+  output$participantDuration <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    duration_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,
+        duration = Results.reception.time - EventTime,
+        duration = round(duration/60, 1)
+      ) |>
+      group_by(MD5.hash.of.participant.s.IP.address) |>
+      summarise(duration = max(duration)) |>
+      ungroup()
+    
+    # participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    if (ncol(duration_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- duration_data
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No duration data found."), rownames = FALSE)
+    }
+  })
+  
+  # Calculate how long participants took per experiment
+  output$participantDurationPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      duration_data <- data |>
+        mutate(
+        EventTime = EventTime/1000,
+               duration = Results.reception.time - EventTime,
+               duration = round(duration/60, 1)
+          ) |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(duration = max(duration)) |>
+        ungroup()
+      
+      mean_data <- duration_data |>
+        summarise(mean_duration = mean(duration, na.rm = TRUE))
+      
+      ggplot(duration_data) +
+        geom_vline(
+          data = mean_data,
+          aes(xintercept = mean_duration),
+          color = "#342e1a",
+          linewidth = 1,
+          inherit.aes = FALSE
+        ) +
+        geom_bar(aes(y = MD5.hash.of.participant.s.IP.address, x = duration),
+                 stat = "identity", fill="#7c6f42") +
+        labs(
+          title = "Duration of the experiment",
+          y = "Participant IP",
+          x = "Time in minutes"
+        ) +
+        theme_bw() +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+        theme(
+          panel.background = element_rect(fill="#ebe5e0"),
+          plot.background = element_rect(fill="#ebe5e0", color=NA),
+          panel.grid.major = element_blank(),
+          legend.background = element_rect(fill="#ebe5e0"),
+          legend.box.background = element_rect(fill="#ebe5e0")
+        )
+    } else {
+      # Display a message if the participant ID column is missing
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
+        theme_void()
+    }
+    })
+  
+  output$listDurationPlot <- renderPlot({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    # Find list/group column (case insensitive)
+    col_names <- tolower(names(data))
+    list_col <- if ("list" %in% col_names) {
+      names(data)[which(col_names == "list")[1]]
+    } else if ("group" %in% col_names) {
+      names(data)[which(col_names == "group")[1]]
+    } else {
+      NULL
+    }
+    
+    if (is.null(list_col)) {
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "No 'list' or 'group' column found.", size = 5, hjust = 0.5) +
+        theme_void()
+      return()
+    }
+    
+    # Calculate average duration per list
+    duration_data <- data |>
+      mutate(
+        EventTime = EventTime / 1000,
+        duration = Results.reception.time - EventTime,
+        duration = round(duration / 60, 1)  # minutes
+      ) |>
+      group_by(.data[[list_col]]) |>
+      summarise(mean_duration = mean(duration, na.rm = TRUE), .groups = "drop") |>
+      mutate(!!list_col := as.factor(.data[[list_col]]))
+    
+    ggplot(duration_data, aes(y = mean_duration, x = .data[[list_col]])) +
+      geom_boxplot(fill = "#7c6f42", outlier.color = "#342e1a", outlier.size = 2) +
+      # geom_col(fill = "#7c6f42") +
+      labs(
+        title = "Average duration per list",
+        y = "Time in minutes",
+        x = tools::toTitleCase(list_col)
+      ) +
+      theme_bw() +
+      theme(
+        # axis.text.x = element_text(angle = 90, hjust = 1),
+        panel.background = element_rect(fill = "#ebe5e0"),
+        plot.background = element_rect(fill = "#ebe5e0", color = NA),
+        panel.grid.major = element_blank(),
+        legend.background = element_rect(fill = "#ebe5e0"),
+        legend.box.background = element_rect(fill = "#ebe5e0")
+      )
+  })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   # Download handler: writes the filtered data as a CSV file
   output$downloadData <- downloadHandler(
