@@ -255,7 +255,7 @@ server <- function(input, output, session) {
     grouping_column <- colnames(data)[1]
 
     # Generate the bar plot
-    ggplot(data, aes_string(x = grouping_column, y = "count")) +
+    ggplot(data, aes(x = grouping_column, y = "count")) +
       geom_bar(stat = "identity", fill = "#342e1a") +
       labs(
         x = tools::toTitleCase(grouping_column),
