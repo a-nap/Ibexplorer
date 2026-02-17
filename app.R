@@ -154,8 +154,8 @@ ui <- fluidPage(
                  # hr(),
                  h3("Custom variable overview"),
                  fluidRow(
-                   style='padding-bottom:5px; ',
-                   column(width = 4,
+                   style='padding-bottom:10px; ',
+                   column(width = 3,
                    textInput(
                    inputId = "custom_var_name",
                    label   = "Type your variable name here:",
@@ -163,21 +163,24 @@ ui <- fluidPage(
                    width   = "100%"),
                    helpText("For example 'List' or 'Condition'.")
                    ),
-                   column(width = 4,
+                   column(width = 3,
                           textInput(
                             inputId = "exclude_var_list",
-                            label   = "Exclude these values (comma-separated):",
+                            label   = "Exclude the values (comma-separated):",
                             value   = "",
                             width   = "100%"),
                           helpText("For example 'Start' or 'undefined' or 'NULL'.")
                    ),
-                   column(width = 4,
+                   column(width = 3,
+                          uiOutput("duration_zoom_ui")
+                   ),
+                   column(width = 3,
                    checkboxInput(
                      inputId = "remove_na",
-                     label   = "Remove missing values (NA)?",
+                     label   = "Remove missing values?",
                      value   = FALSE  # default is not checked
-                   )
-                   )),
+                   ))
+                   ),
                  fluidRow(
                    column(width = 6,
                    plotOutput("varPlot")), 
@@ -432,11 +435,15 @@ server <- function(input, output, session) {
         filter(!(duration_data[[var_col]] %in% excl))
     }
     
+    # Duration range
+    zoom_range <- input$duration_zoom
+    
     # Plot
     ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
       geom_boxplot(fill = "#ebe5e0", 
                    outlier.color = "#201010", 
                    outlier.size = 2) +
+      coord_cartesian(ylim = zoom_range) +
       labs(
         title = paste0("Average duration per ", var_col),
         y = "Time in minutes",
@@ -455,7 +462,6 @@ server <- function(input, output, session) {
   
   
   # Input the custom variable 
-  
   custom_var <- reactive({
     val <- input$custom_var_name
     if (is.null(val) || trimws(val) == "") {
@@ -466,7 +472,6 @@ server <- function(input, output, session) {
   })  
 
   # Exclude these values
-  
   exclude_var_list <- reactive({
     val <- input$exclude_var_list
     if (is.null(val) || trimws(val) == "") {
@@ -475,6 +480,33 @@ server <- function(input, output, session) {
       strsplit(val, ",")[[1]] |>
         trimws() 
     }
+  })
+  
+  # Calculate duration limits
+  
+  output$duration_zoom_ui <- renderUI({
+    req(filtered_data())  # make sure data is available
+    
+    data <- filtered_data() %>%
+      mutate(duration = round((Results.reception.time - EventTime / 1000)/60, 1)) %>%
+      filter(!is.na(duration))  # remove NAs for slider calculation
+    
+    min_dur <- floor(min(data$duration, na.rm = TRUE))
+    max_dur <- ceiling(max(data$duration, na.rm = TRUE))
+    
+    sliderInput(
+      inputId = "duration_zoom",
+      label = "Duration range (minutes):",
+      min = min_dur,
+      max = max_dur,
+      value = c(min_dur, max_dur),
+      step = 1,
+      ticks = FALSE  # remove bottom tick labels
+      # min = min_dur,
+      # max = max_dur,
+      # value = c(min_dur, max_dur),  # default full range
+      # step = 1
+    )
   })
   
 ## Data input processing ---------------------------------------------------
