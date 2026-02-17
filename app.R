@@ -51,6 +51,9 @@ read_pcibex <- function(filepath,
   }
 }
 
+# Standard error of the mean
+sem <- function(x) { sd(x,na.rm=T) / sqrt(length(x)); }
+
 # tabPanel(title=tagList(icon("code"),"Script"),
 
 
@@ -116,39 +119,62 @@ ui <- fluidPage(
                  h3("Numerical data overview"),
                  DT::dataTableOutput("dataSummary"),
                  hr(),
-                 h3("List overview"),
-                 fluidRow(
-                   column(width=12,
-                          textInput(
-                   inputId = "list_var_name",
-                   label   = "Add your list/group variable name here:",
-                   value   = ""
-                 ))),
+                 # h3("List overview"),
+                 # fluidRow(
+                 #   column(width=12,
+                 #          textInput(
+                 #   inputId = "list_var_name",
+                 #   label   = "Add your list/group variable name here:",
+                 #   value   = ""
+                 # ))),
+                 # fluidRow(
+                 #   column(width = 6,
+                 #          plotOutput("listPlot")
+                 #   ),
+                 #   column(width = 6,
+                 #          plotOutput("listDurationPlot")
+                 #   )
+                 # ),
+                 # hr(),
+                 # h3("Condition overview"),
+                 # fluidRow(
+                 #   column(width=12,
+                 #          textInput(
+                 #            inputId = "cond_var_name",
+                 #            label   = "Add your condition variable name here:",
+                 #            value   = ""
+                 #          ))),
+                 # fluidRow(
+                 #   column(width = 6,
+                 #          plotOutput("conditionPlot")
+                 #   ),
+                 #   column(width = 6,
+                 #          plotOutput("conditionDurationPlot")
+                 #   )
+                 # ),
+                 # hr(),
+                 h3("Custom variable overview"),
                  fluidRow(
                    column(width = 6,
-                          plotOutput("listPlot")
-                   ),
+                   textInput(
+                   inputId = "custom_var_name",
+                   label   = "Type your variable name here:",
+                   value   = ""),
+                   helpText("For example 'List' or 'Condition'."))
+                   ,
                    column(width = 6,
-                          plotOutput("listDurationPlot")
+                   checkboxInput(
+                     inputId = "remove_na",
+                     label   = "Remove missing values (NA)?",
+                     value   = FALSE  # default is not checked
                    )
-                 ),
-                 hr(),
-                 h3("Condition overview"),
-                 fluidRow(
-                   column(width=12,
-                          textInput(
-                            inputId = "cond_var_name",
-                            label   = "Add your condition variable name here:",
-                            value   = ""
-                          ))),
+                   )),
                  fluidRow(
                    column(width = 6,
-                          plotOutput("conditionPlot")
-                   ),
+                   plotOutput("varPlot")), 
                    column(width = 6,
-                          plotOutput("conditionDurationPlot")
+                   plotOutput("varDurationPlot"))
                    )
-                 )
         ),
 
 ### Participant overview ----------------------------------------------------
@@ -232,8 +258,6 @@ Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 # Define server logic
 server <- function(input, output, session) {
   
-  
-  
 
 ## Feature development -----------------------------------------------------
 
@@ -247,47 +271,83 @@ server <- function(input, output, session) {
     # Find list column
     col_names <- tolower(names(data))
     
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
+    
+    if (!is.null(custom_var()) && trimws(custom_var()) != "") {
+      user_col <- tolower(custom_var())
       if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
+        var_col <- names(data)[which(col_names == user_col)[1]]
       } else {
-        list_col <- NULL
+        var_col <- NULL
       }
     } else {
-      # fallback logic
-      list_col <- if ("list" %in% col_names) {
+      # fallback logic: if no variable is chosen then look for lists or conditions
+      var_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
         names(data)[which(col_names == "group")[1]]
+      } else if ("condition" %in% col_names) {
+        names(data)[which(col_names == "condition")[1]]
+      } else if ("treatment" %in% col_names) {
+        names(data)[which(col_names == "treatment")[1]]
       } else {
         NULL
       }
     }
     
     # Stop if no valid variable found
-    if (is.null(list_col)) {
+    if (is.null(var_col)) {
       stop("No valid variable found.")
     }
     
+
     # Group by the found column and summarize
     data <- data |>
-      group_by(.data[[list_col]]) |>
+      group_by(.data[[var_col]]) |>
       summarize(count = n(), .groups = 'drop')
+
+    # Optionally remove missing values
+    if (input$remove_na) {
+      data <- na.omit(data)
+    }
+    
+    # Calculate the mean and standard deviation
+    mean_value <- mean(data$count, na.rm = TRUE)
+    sem_value   <- sem(data$count)
+    ymin = mean_value - sem_value
+    ymax = mean_value + sem_value
     
     # Set up for plotting
-    grouping_column <- list_col
+    grouping_column <- var_col
     data[[grouping_column]] <- as.factor(data[[grouping_column]])
-    
+
+        
     # Generate the bar plot
     ggplot(data, 
            aes(x = .data[[grouping_column]], y = count)) +
-      geom_bar(stat = "identity", fill = "#342e1a") +
-      geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
+      annotate(
+        "rect",
+        xmin = -Inf, xmax = Inf,
+        ymin = ymin,
+        ymax = ymax,
+        fill = "#201010",
+        alpha = 0.15
+      ) +
+      geom_bar(stat = "identity", fill = "#794729") +
+      geom_text(aes(label = count), 
+                vjust = -0.3, 
+                size = 4, 
+                color = "#201010") +
+
+      geom_hline(
+        yintercept = mean_value,
+        color = "#201010",
+        linewidth = 1,
+        linetype = "dashed"
+      ) +
       labs(
         x = tools::toTitleCase(grouping_column),
         y = "Row count",
-        title = "Occurrences of each list in the data"
+        title = paste0("Occurrences of each ",grouping_column," in the data")
       ) +
       theme_bw() +
       theme(
@@ -300,8 +360,8 @@ server <- function(input, output, session) {
   })
   
   
-  # List duration plot
-  output$listDurationPlot <- renderPlot({
+  # Duration plot
+  output$varDurationPlot <- renderPlot({
     req(filtered_data())
     
     data <- filtered_data() |>
@@ -310,16 +370,16 @@ server <- function(input, output, session) {
     # Find list column
     col_names <- names(data)
     
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
+    if (!is.null(custom_var()) && trimws(custom_var()) != "") {
+      user_col <- tolower(custom_var())
       if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
+        var_col <- names(data)[which(col_names == user_col)[1]]
       } else {
-        list_col <- NULL
+        var_col <- NULL
       }
     } else {
       # fallback logic
-      list_col <- if ("list" %in% col_names) {
+      var_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
         names(data)[which(col_names == "group")[1]]
@@ -329,8 +389,8 @@ server <- function(input, output, session) {
     }
     
     # Stop if no valid list column found
-    if (is.null(list_col)) {
-      stop("No valid list column found.")
+    if (is.null(var_col)) {
+      stop("No valid variable column found.")
     }
     
     # Calculate average duration per list
@@ -341,15 +401,15 @@ server <- function(input, output, session) {
         duration = round(duration / 60, 1)  # minutes
       ) |>
       mutate(
-        !!list_col := as.factor(.data[[list_col]])   
+        !!var_col := as.factor(.data[[var_col]])   
       )  
     
-    ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
+    ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
       geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
       labs(
-        title = "Average duration per list",
+        title = paste0("Average duration per ", var_col),
         y = "Time in minutes",
-        x = tools::toTitleCase(list_col)
+        x = tools::toTitleCase(var_col)
       ) +
       theme_bw() +
       theme(
@@ -363,10 +423,10 @@ server <- function(input, output, session) {
   })
   
   
-  # Optionally, input the list variable 
+  # Input the custom variable 
   
-  list_var <- reactive({
-    val <- input$list_var_name
+  custom_var <- reactive({
+    val <- input$custom_var_name
     if (is.null(val) || trimws(val) == "") {
       return(NULL)
     } else {
