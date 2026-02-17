@@ -395,11 +395,11 @@ server <- function(input, output, session) {
       ) +
       theme_bw() +
       theme(
-        panel.background = element_rect(fill = "#ebe5e0"),
+        panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
-        legend.background = element_rect(fill = "#ebe5e0"),
-        legend.box.background = element_rect(fill = "#ebe5e0")
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
       )
   })
   
@@ -458,11 +458,11 @@ server <- function(input, output, session) {
       theme_bw() +
       theme(
         # axis.text.x = element_text(angle = 90, hjust = 1),
-        panel.background = element_rect(fill = "#ebe5e0"),
+        panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
-        legend.background = element_rect(fill = "#ebe5e0"),
-        legend.box.background = element_rect(fill = "#ebe5e0")
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
       )
   })
 
@@ -577,11 +577,11 @@ output$conditionPlot <- renderPlot({
     ) +
     theme_bw() +
     theme(
-      panel.background = element_rect(fill = "#ebe5e0"),
+      panel.background = element_blank(),
       plot.background = element_rect(fill = "#ebe5e0", color = NA),
       panel.grid.major = element_blank(),
-      legend.background = element_rect(fill = "#ebe5e0"),
-      legend.box.background = element_rect(fill = "#ebe5e0")
+      legend.background = element_blank(),
+      legend.box.background = element_blank(),
     )
 })
 
@@ -643,11 +643,11 @@ output$conditionDurationPlot <- renderPlot({
     theme_bw() +
     theme(
       # axis.text.x = element_text(angle = 90, hjust = 1),
-      panel.background = element_rect(fill = "#ebe5e0"),
+      panel.background = element_blank(),
       plot.background = element_rect(fill = "#ebe5e0", color = NA),
       panel.grid.major = element_blank(),
-      legend.background = element_rect(fill = "#ebe5e0"),
-      legend.box.background = element_rect(fill = "#ebe5e0")
+      legend.background = element_blank(),
+      legend.box.background = element_blank()
     )
 })
 
@@ -714,11 +714,11 @@ output$participantPlotUI <- renderUI({
         theme_bw() +
         theme(
           axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_rect(fill="#ebe5e0"),
+          panel.background = element_blank(),
           plot.background = element_rect(fill="#ebe5e0", color=NA),
           panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
+          legend.background = element_blank(),
+          legend.box.background = element_blank()
         )
     } else {
       # Display a message if the participant ID column is missing
@@ -796,11 +796,11 @@ output$participantPlotUI <- renderUI({
         ) +
         theme_bw() +
         theme(
-          panel.background = element_rect(fill = "#ebe5e0"),
+          panel.background = element_blank(),
           plot.background = element_rect(fill = "#ebe5e0", color = NA),
           panel.grid.major = element_blank(),
-          legend.background = element_rect(fill = "#ebe5e0"),
-          legend.box.background = element_rect(fill = "#ebe5e0")
+          legend.background = element_blank(),
+          legend.box.background = element_blank()
         )
       
     } else {
@@ -863,11 +863,11 @@ output$participantPlotUI <- renderUI({
         theme_bw() +
         theme(
           # axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_rect(fill="#ebe5e0"),
+          panel.background = element_blank(),
           plot.background = element_rect(fill="#ebe5e0", color=NA),
           panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
+          legend.background = element_blank(),
+          legend.box.background = element_blank()
         )
     } else {
       # Display a message if the participant ID column is missing
@@ -900,4 +900,3 @@ shinyApp(ui = ui, server = server)
 
 # TODO --------------------------------------------------------------------
 
-# FIXME the participant plot is too large for small samples. Make smaller
