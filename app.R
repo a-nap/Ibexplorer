@@ -231,8 +231,72 @@ Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 # Define server logic
 server <- function(input, output, session) {
   
+## Data input processing ---------------------------------------------------
 
-## Feature development -----------------------------------------------------
+  # Process the file when the "Submit" button is clicked
+  mydata <- eventReactive(input$go, {
+    inFile <- input$raw.file
+    if (is.null(inFile)) return(NULL)
+    # Apply the read_pcibex function to the uploaded file
+    read_pcibex(inFile$datapath, auto.colnames = TRUE)
+  })
+  
+  # Create dynamic UI for selecting columns based on processed data
+  output$column_selector <- renderUI({
+    req(mydata())
+    checkboxGroupInput("selected_columns", "",
+                       choices = names(mydata()),
+                       selected = names(mydata()))
+  })
+
+  # Reactive expression for filtered data based on column selection and search phrase
+  filtered_data <- reactive({
+    req(mydata())
+    data <- mydata()
+    # Subset columns as selected by the user
+    if (!is.null(input$selected_columns)) {
+      data <- data[, input$selected_columns, drop = FALSE]
+    }
+    # If a search phrase is provided, filter rows where any cell contains the phrase
+    if (!is.null(input$search_phrase) && input$search_phrase != "") {
+      data <- data[apply(data, 1, function(row) {
+        any(grepl(input$search_phrase, as.character(row), ignore.case = TRUE))
+      }), ]
+    }
+    return(data)
+  })
+  
+
+## Table preview -----------------------------------------------------------
+
+  # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
+  output$preview <- DT::renderDataTable({
+    req(filtered_data())
+    DT::datatable(filtered_data(),
+                  options = list(pageLength = 20,
+                                 lengthMenu = c(20, 50, 100, 200),
+                                 autoWidth = TRUE),
+                  filter = "top",
+                  rownames = FALSE)
+  })
+  
+  # Render summary information: numeric summary for numeric columns of filtered data
+  output$dataSummary <- DT::renderDataTable({
+    req(filtered_data())
+    data <- filtered_data()
+    numeric_data <- data |> dplyr::select(where(is.numeric))
+    if (ncol(numeric_data) > 0) {
+      # Using the psych package's describe function for summary statistics
+      summary_stats <- psych::describe(numeric_data) |> 
+        mutate(across(everything()))
+      DT::datatable(summary_stats, rownames = TRUE)
+    } else {
+      # If no numeric columns, display a message
+      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+    }
+  })
+
+## Custom variable info ----------------------------------------------------
 
   # Variable count plot
   output$varPlot <- renderPlot({
@@ -272,12 +336,12 @@ server <- function(input, output, session) {
       stop("No valid variable found.")
     }
     
-
+    
     # Group by the found column and summarize
     data <- data |>
       group_by(.data[[var_col]]) |>
       summarize(count = n(), .groups = 'drop')
-
+    
     # Optionally remove missing values
     if (input$remove_na) {
       data <- na.omit(data)
@@ -299,8 +363,8 @@ server <- function(input, output, session) {
     # Set up for plotting
     grouping_column <- var_col
     data[[grouping_column]] <- as.factor(data[[grouping_column]])
-
-        
+    
+    
     # Generate the bar plot
     ggplot(data, 
            aes(x = .data[[grouping_column]], y = count)) +
@@ -317,7 +381,7 @@ server <- function(input, output, session) {
                 vjust = -0.3, 
                 size = 4, 
                 color = "#201010") +
-
+      
       geom_hline(
         yintercept = mean_value,
         color = "#201010",
@@ -430,7 +494,7 @@ server <- function(input, output, session) {
       return(val)
     }
   })  
-
+  
   # Exclude these values
   exclude_var_list <- reactive({
     val <- input$exclude_var_list
@@ -465,393 +529,7 @@ server <- function(input, output, session) {
     )
   })
   
-## Data input processing ---------------------------------------------------
-
-  # Process the file when the "Submit" button is clicked
-  mydata <- eventReactive(input$go, {
-    inFile <- input$raw.file
-    if (is.null(inFile)) return(NULL)
-    # Apply the read_pcibex function to the uploaded file
-    read_pcibex(inFile$datapath, auto.colnames = TRUE)
-  })
   
-  # Create dynamic UI for selecting columns based on processed data
-  output$column_selector <- renderUI({
-    req(mydata())
-    checkboxGroupInput("selected_columns", "",
-                       choices = names(mydata()),
-                       selected = names(mydata()))
-  })
-
-  # Reactive expression for filtered data based on column selection and search phrase
-  filtered_data <- reactive({
-    req(mydata())
-    data <- mydata()
-    # Subset columns as selected by the user
-    if (!is.null(input$selected_columns)) {
-      data <- data[, input$selected_columns, drop = FALSE]
-    }
-    # If a search phrase is provided, filter rows where any cell contains the phrase
-    if (!is.null(input$search_phrase) && input$search_phrase != "") {
-      data <- data[apply(data, 1, function(row) {
-        any(grepl(input$search_phrase, as.character(row), ignore.case = TRUE))
-      }), ]
-    }
-    return(data)
-  })
-  
-
-## Table preview -----------------------------------------------------------
-
-  # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
-  output$preview <- DT::renderDataTable({
-    req(filtered_data())
-    DT::datatable(filtered_data(),
-                  options = list(pageLength = 20,
-                                 lengthMenu = c(20, 50, 100, 200),
-                                 autoWidth = TRUE),
-                  filter = "top",
-                  rownames = FALSE)
-  })
-  
-  # Render summary information: numeric summary for numeric columns of filtered data
-  output$dataSummary <- DT::renderDataTable({
-    req(filtered_data())
-    data <- filtered_data()
-    numeric_data <- data |> dplyr::select(where(is.numeric))
-    if (ncol(numeric_data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- psych::describe(numeric_data) |> 
-        mutate(across(everything()))
-      DT::datatable(summary_stats, rownames = TRUE)
-    } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
-    }
-  })
-
-## List info ---------------------------------------------------------------
-
-  # List plot
-  output$listPlot <- renderPlot({
-    req(filtered_data())
-    
-    data <- filtered_data() |>
-      rename_with(~ make.unique(tolower(.)))
-    
-    # Find list column
-    col_names <- tolower(names(data))
-    
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
-      if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
-      } else {
-        list_col <- NULL
-      }
-    } else {
-      # fallback logic
-      list_col <- if ("list" %in% col_names) {
-        names(data)[which(col_names == "list")[1]]
-      } else if ("group" %in% col_names) {
-        names(data)[which(col_names == "group")[1]]
-      } else {
-        NULL
-      }
-    }
-    
-    # Stop if no valid list column found
-    if (is.null(list_col)) {
-      stop("No valid list column found.")
-    }
-    
-    # Group by the found column and summarize
-    data <- data |>
-      group_by(.data[[list_col]]) |>
-      summarize(count = n(), .groups = 'drop')
-    
-    # Set up for plotting
-    grouping_column <- list_col
-    data[[grouping_column]] <- as.factor(data[[grouping_column]])
-    
-    # Generate the bar plot
-    ggplot(data, 
-           aes(x = .data[[grouping_column]], y = count)) +
-      geom_bar(stat = "identity", fill = "#342e1a") +
-      geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
-      labs(
-        x = tools::toTitleCase(grouping_column),
-        y = "Row count",
-        title = "Occurrences of each list in the data"
-      ) +
-      theme_bw() +
-      theme(
-        panel.background = element_blank(),
-        plot.background = element_rect(fill = "#ebe5e0", color = NA),
-        panel.grid.major = element_blank(),
-        legend.background = element_blank(),
-        legend.box.background = element_blank()
-      )
-  })
-  
-  
-  # List duration plot
-  output$listDurationPlot <- renderPlot({
-    req(filtered_data())
-    
-    data <- filtered_data() |>
-      rename_with(~ make.unique(tolower(.)))
-    
-    # Find list column
-    col_names <- names(data)
-    
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
-      if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
-      } else {
-        list_col <- NULL
-      }
-    } else {
-      # fallback logic
-      list_col <- if ("list" %in% col_names) {
-        names(data)[which(col_names == "list")[1]]
-      } else if ("group" %in% col_names) {
-        names(data)[which(col_names == "group")[1]]
-      } else {
-        NULL
-      }
-    }
-    
-    # Stop if no valid list column found
-    if (is.null(list_col)) {
-      stop("No valid list column found.")
-    }
-    
-    # Calculate average duration per list
-    duration_data <- data |>
-      mutate(
-        EventTime = eventtime / 1000,
-        duration = results.reception.time - EventTime,
-        duration = round(duration / 60, 1)  # minutes
-      ) |>
-      mutate(
-        !!list_col := as.factor(.data[[list_col]])   
-      )  
-
-    ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
-      geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
-      labs(
-        title = "Average duration per list",
-        y = "Time in minutes",
-        x = tools::toTitleCase(list_col)
-      ) +
-      theme_bw() +
-      theme(
-        panel.background = element_blank(),
-        plot.background = element_rect(fill = "#ebe5e0", color = NA),
-        panel.grid.major = element_blank(),
-        legend.background = element_blank(),
-        legend.box.background = element_blank()
-      )
-  })
-
-  
-# Optionally, input the list variable 
-
-list_var <- reactive({
-  val <- input$list_var_name
-  if (is.null(val) || trimws(val) == "") {
-    return(NULL)
-  } else {
-    return(val)
-  }
-})
-
-
-## Condition info ---------------------------------------------------------------
-
-
-output$conditionSummary <- DT::renderDataTable({
-  req(filtered_data())
-  
-  data <- filtered_data() |>
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find condition column 
-  col_names <- tolower(names(data))
-  
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      cond_col <- names(data)[which(col_names == user_col)[1]]
-    } else {
-      cond_col <- NULL
-    }
-  } else {
-    # fallback logic
-    cond_col <- if ("condition" %in% col_names) {
-      names(data)[which(col_names == "condition")[1]]
-    } else if ("treatment" %in% col_names) {
-      names(data)[which(col_names == "treatment")[1]]
-    } else {
-      NULL
-    }
-  }
-  
-  # Stop if no valid condition column found
-  if (is.null(cond_col)) {
-    return(DT::datatable(data.frame(Message = "No condition column found."), rownames = FALSE))
-  }
-  
-  # Group by the found column and summarize
-  summary_data <- data |>
-    group_by(.data[[cond_col]]) |>
-    summarize(count = n(), .groups = 'drop')
-  
-  DT::datatable(summary_data, rownames = TRUE)
-})
-
-
-# Conditions plot
-output$conditionPlot <- renderPlot({
-  req(filtered_data()) 
-  
-  data <- filtered_data() %>%
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find condition column using new logic
-  col_names <- tolower(names(data))
-  
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      cond_col <- names(data)[which(col_names == user_col)[1]]
-    } else {
-      cond_col <- NULL
-    }
-  } else {
-    # original fallback logic
-    cond_col <- if ("condition" %in% col_names) {
-      names(data)[which(col_names == "condition")[1]]
-    } else if ("treatment" %in% col_names) {
-      names(data)[which(col_names == "treatment")[1]]
-    } else {
-      NULL
-    }
-  }
-  
-  # Stop if no valid list column found
-  if (is.null(cond_col)) {
-    stop("No valid condition column found.")
-  }
-  
-  # Group by the found column and summarize
-  data <- data %>%
-    group_by(.data[[cond_col]]) |>
-    summarize(count = n(), .groups = 'drop')
-  
-  # Set up for plotting
-  grouping_column <- cond_col
-  data[[grouping_column]] <- as.factor(data[[grouping_column]])
-  
-  # Generate the bar plot
-  ggplot(data, 
-         aes(x = .data[[grouping_column]], y = count)) +
-    geom_bar(stat = "identity", fill = "#342e1a") +
-    geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
-    labs(
-      x = tools::toTitleCase(grouping_column),
-      y = "Row count",
-      title = "Occurrences of each list in the data"
-    ) +
-    theme_bw() +
-    theme(
-      panel.background = element_blank(),
-      plot.background = element_rect(fill = "#ebe5e0", color = NA),
-      panel.grid.major = element_blank(),
-      legend.background = element_blank(),
-      legend.box.background = element_blank(),
-    )
-})
-
-
-# Condition duration plot
-output$conditionDurationPlot <- renderPlot({
-  req(filtered_data())
-  
-  data <- filtered_data() |>
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find list column
-  col_names <- names(data)
-  
-  
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    # try to match user-provided name case-insensitively
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      cond_col <- names(data)[which(col_names == user_col)[1]]
-    } else {
-      cond_col <- NULL  
-    }
-  } else {
-    # fallback to logic
-    cond_col <- if ("condition" %in% col_names) {
-      names(data)[which(col_names == "condition")[1]]
-    } else if ("treatment" %in% col_names) {
-      names(data)[which(col_names == "treatment")[1]]
-    } else {
-      NULL
-    }
-  }
-  
-  # Stop if no valid condition column found
-  if (is.null(cond_var)) {
-    stop("No valid condition column found.")
-  }
-  
-  # Calculate average duration per condition
-  duration_data <- data |>
-    mutate(
-      EventTime = eventtime / 1000,
-      duration = results.reception.time - EventTime,
-      duration = round(duration / 60, 1)  # minutes
-    ) |>
-    mutate(
-      !!cond_col := as.factor(.data[[cond_col]])   
-    )  
-
-  ggplot(duration_data, aes(y = duration, x = .data[[cond_col]])) +
-    geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
-    labs(
-      title = "Average duration per condition",
-      y = "Time in minutes",
-      x = tools::toTitleCase(cond_col)
-    ) +
-    theme_bw() +
-    theme(
-      # axis.text.x = element_text(angle = 90, hjust = 1),
-      panel.background = element_blank(),
-      plot.background = element_rect(fill = "#ebe5e0", color = NA),
-      panel.grid.major = element_blank(),
-      legend.background = element_blank(),
-      legend.box.background = element_blank()
-    )
-})
-
-
-# Optionally, input the list variable 
-
-cond_var <- reactive({
-  val <- input$cond_var_name
-  if (is.null(val) || trimws(val) == "") {
-    return(NULL)
-  } else {
-    return(val)
-  }
-})
-
   
 # Participant info --------------------------------------------------------
 
