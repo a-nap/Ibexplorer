@@ -54,8 +54,6 @@ read_pcibex <- function(filepath,
 # Standard error of the mean
 sem <- function(x) { sd(x,na.rm=T) / sqrt(length(x)); }
 
-# tabPanel(title=tagList(icon("code"),"Script"),
-
 
 # UI ----------------------------------------------------------------------
 
@@ -105,8 +103,7 @@ ui <- fluidPage(
     mainPanel(
 
 ### Table preview -----------------------------------------------------------
-# tabPanel(title=tagList(,"Stimuli file"),
-         
+
       tabsetPanel(
         tabPanel(title=tagList(icon("table"),"Table Preview"),
                  DT::dataTableOutput("preview")
@@ -118,40 +115,7 @@ ui <- fluidPage(
                  h3("Numerical data overview"),
                  DT::dataTableOutput("dataSummary"),
                  hr(),
-                 # h3("List overview"),
-                 # fluidRow(
-                 #   column(width=12,
-                 #          textInput(
-                 #   inputId = "list_var_name",
-                 #   label   = "Add your list/group variable name here:",
-                 #   value   = ""
-                 # ))),
-                 # fluidRow(
-                 #   column(width = 6,
-                 #          plotOutput("listPlot")
-                 #   ),
-                 #   column(width = 6,
-                 #          plotOutput("listDurationPlot")
-                 #   )
-                 # ),
-                 # hr(),
-                 # h3("Condition overview"),
-                 # fluidRow(
-                 #   column(width=12,
-                 #          textInput(
-                 #            inputId = "cond_var_name",
-                 #            label   = "Add your condition variable name here:",
-                 #            value   = ""
-                 #          ))),
-                 # fluidRow(
-                 #   column(width = 6,
-                 #          plotOutput("conditionPlot")
-                 #   ),
-                 #   column(width = 6,
-                 #          plotOutput("conditionDurationPlot")
-                 #   )
-                 # ),
-                 # hr(),
+
                  h3("Custom variable overview"),
                  fluidRow(
                    style='padding-bottom:10px; ',
@@ -178,7 +142,7 @@ ui <- fluidPage(
                    checkboxInput(
                      inputId = "remove_na",
                      label   = "Remove missing values?",
-                     value   = FALSE  # default is not checked
+                     value   = FALSE
                    ))
                    ),
                  fluidRow(
@@ -194,7 +158,6 @@ ui <- fluidPage(
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
                    column(width = 7,
-                          # plotOutput("participantPlot")
                           uiOutput("participantPlotUI")
                    ),
                    column(width = 5,
@@ -203,8 +166,6 @@ ui <- fluidPage(
                  ),
                  fluidRow(
                    column(width = 7,
-                          # uiOutput("participantDurationPlotUI")
-                          # plotOutput("participantDurationPlot")
                           plotOutput("participantDurationHistogramPlot")
                    ),
                    column(width = 5,
@@ -485,11 +446,11 @@ server <- function(input, output, session) {
   # Calculate duration limits
   
   output$duration_zoom_ui <- renderUI({
-    req(filtered_data())  # make sure data is available
+    req(filtered_data()) 
     
-    data <- filtered_data() %>%
+    data <- filtered_data() |>
       mutate(duration = round((Results.reception.time - EventTime / 1000)/60, 1)) %>%
-      filter(!is.na(duration))  # remove NAs for slider calculation
+      filter(!is.na(duration)) 
     
     min_dur <- floor(min(data$duration, na.rm = TRUE))
     max_dur <- ceiling(max(data$duration, na.rm = TRUE))
@@ -501,11 +462,7 @@ server <- function(input, output, session) {
       max = max_dur,
       value = c(min_dur, max_dur),
       step = 1,
-      ticks = FALSE  # remove bottom tick labels
-      # min = min_dur,
-      # max = max_dur,
-      # value = c(min_dur, max_dur),  # default full range
-      # step = 1
+      ticks = FALSE  
     )
   })
   
@@ -576,47 +533,6 @@ server <- function(input, output, session) {
 
 ## List info ---------------------------------------------------------------
 
-  # output$listSummary <- DT::renderDataTable({
-  #   req(filtered_data(), list_var())  # also require list_var reactive
-  #   
-  #   data <- filtered_data() |>
-  #     rename_with(~ make.unique(tolower(.)))
-  #   
-  #   # Find list column using new logic
-  #   col_names <- tolower(names(data))
-  #   
-  #   if (!is.null(list_var()) && trimws(list_var()) != "") {
-  #     user_col <- tolower(list_var())
-  #     if (user_col %in% col_names) {
-  #       list_col <- names(data)[which(col_names == user_col)[1]]
-  #     } else {
-  #       list_col <- NULL
-  #     }
-  #   } else {
-  #     # original fallback logic
-  #     list_col <- if ("list" %in% col_names) {
-  #       names(data)[which(col_names == "list")[1]]
-  #     } else if ("group" %in% col_names) {
-  #       names(data)[which(col_names == "group")[1]]
-  #     } else {
-  #       NULL
-  #     }
-  #   }
-  #   
-  #   # Stop if no valid list column found
-  #   if (is.null(list_col)) {
-  #     return(DT::datatable(data.frame(Message = "No list column found."), rownames = FALSE))
-  #   }
-  #   
-  #   # Group by the found column and summarize
-  #   summary_data <- data |>
-  #     group_by(.data[[list_col]]) |>
-  #     summarize(count = n(), .groups = 'drop')
-  #   
-  #   DT::datatable(summary_data, rownames = TRUE)
-  # })
-  # 
-  
   # List plot
   output$listPlot <- renderPlot({
     req(filtered_data())
@@ -733,7 +649,6 @@ server <- function(input, output, session) {
       ) +
       theme_bw() +
       theme(
-        # axis.text.x = element_text(angle = 90, hjust = 1),
         panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
@@ -910,7 +825,6 @@ output$conditionDurationPlot <- renderPlot({
 
   ggplot(duration_data, aes(y = duration, x = .data[[cond_col]])) +
     geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
-    # geom_col(fill = "#7c6f42") + 794729
     labs(
       title = "Average duration per condition",
       y = "Time in minutes",
@@ -928,7 +842,7 @@ output$conditionDurationPlot <- renderPlot({
 })
 
 
-# Optionally, input the list variable nae 
+# Optionally, input the list variable 
 
 cond_var <- reactive({
   val <- input$cond_var_name
@@ -962,9 +876,9 @@ cond_var <- reactive({
 
 # Participant count
 output$participantPlotUI <- renderUI({
-  n <- nrow(filtered_data())  # number of participants
-  max_height <- 700          # cap the height at 1000px
-  height <- min(50 + n * 5, max_height)  # 5px per participant + base
+  n <- nrow(filtered_data())
+  max_height <- 700          # cap the height at 700px
+  height <- min(50 + n * 3, max_height)  # 3px per participant + base
   
   plotOutput("participantPlot", height = paste0(height, "px"))
 })
@@ -981,7 +895,7 @@ output$participantPlotUI <- renderUI({
         ungroup()
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#342e1a") +
+        geom_bar(stat = "identity", fill="#342e1a") + # FIXME
         labs(
           title = "Occurrences of each participant in the data",
           y = "Participant IP",
@@ -1043,7 +957,7 @@ output$participantPlotUI <- renderUI({
         mutate(
           EventTime = EventTime / 1000,
           duration = Results.reception.time - EventTime,
-          duration = round(duration / 60, 1)  # minutes
+          duration = round(duration / 60, 1)
         ) |>
         group_by(MD5.hash.of.participant.s.IP.address) |>
         summarise(duration = max(duration, na.rm = TRUE)) |>
@@ -1119,8 +1033,8 @@ output$participantPlotUI <- renderUI({
 
   output$participantDurationPlotUI <- renderUI({
     n <- nrow(filtered_data())  # number of participants
-    max_height <- 1000          # cap the height at 1000px
-    height <- min(50 + n * 5, max_height)  # 5px per participant + base
+    max_height <- 700          # cap the height at 700px
+    height <- min(50 + n * 5, max_height)  # 3px per participant + base
     
     plotOutput("participantDurationPlot", height = paste0(height, "px"))
   })
@@ -1148,7 +1062,7 @@ output$participantPlotUI <- renderUI({
         geom_vline(
           data = mean_data,
           aes(xintercept = mean_duration),
-          color = "#342e1a",
+          color = "#342e1a", # FIXME
           linewidth = 1,
           inherit.aes = FALSE
         ) +
@@ -1198,4 +1112,4 @@ shinyApp(ui = ui, server = server)
 
 
 # TODO --------------------------------------------------------------------
-
+# fix FIXMEs
