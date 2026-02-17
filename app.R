@@ -12,7 +12,7 @@ ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
   primary = "#794729",
-  secondary = "#342e1a",
+  secondary = "#201010", ##342e1a
   info = "#7c6f42"
 )
 
@@ -215,6 +215,7 @@ Follow these steps if you're having trouble uploading and processing your data.
 
 - Ensure that your file is in CSV format.
 - Check that the file size does not exceed 30MB.
+- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 - If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
 - It's always a good idea to double-check the spelling.
@@ -223,7 +224,6 @@ Follow these steps if you're having trouble uploading and processing your data.
 - The explorer works only with the unmodified PCIbex results file.
 - Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
 
-Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 
 ### Version
 
