@@ -157,20 +157,9 @@ ui <- fluidPage(
 
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
-                   column(width = 7,
-                          uiOutput("participantPlotUI")
-                   ),
-                   column(width = 5,
+                          plotOutput("participantPlot", height = "500px"),
+                          plotOutput("participantDurationHistogramPlot"),
                           DT::dataTableOutput("participantSummary")
-                   )
-                 ),
-                 fluidRow(
-                   column(width = 7,
-                          plotOutput("participantDurationHistogramPlot")
-                   ),
-                   column(width = 5,
-                          DT::dataTableOutput("participantDuration")
-                   )
                  )
         ),
 
@@ -560,24 +549,33 @@ server <- function(input, output, session) {
   output$participantSummary <- DT::renderDataTable({
     req(filtered_data())
     data <- filtered_data()
-    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    
+    participant_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,
+        duration = Results.reception.time - EventTime,
+        duration = round(duration/60, 1)
+      ) |>
+      group_by(MD5.hash.of.participant.s.IP.address) |>
+      summarise(count = n(),
+                duration = max(duration)) 
+    
+    # participant_data <- data |> 
+    #   group_by(MD5.hash.of.participant.s.IP.address) |> 
+    #   summarize(count = n())
     if (ncol(participant_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- participant_data
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+      DT::datatable(data.frame(Message = "No participant data found."), rownames = FALSE)
     }
   })
   
 
 # Participant count
-output$participantPlotUI <- renderUI({
-  n <- nrow(filtered_data())
-  max_height <- 700          # cap the height at 700px
-  height <- min(50 + n * 3, max_height)  # 3px per participant + base
-  
+
   plotOutput("participantPlot", height = paste0(height, "px"))
 })
 
@@ -594,6 +592,7 @@ output$participantPlotUI <- renderUI({
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
         geom_bar(stat = "identity", fill="#201010") + 
+        coord_flip() +
         labs(
           title = "Occurrences of each participant in the data",
           y = "Participant IP",
@@ -601,6 +600,7 @@ output$participantPlotUI <- renderUI({
         ) +
         theme_bw() +
         theme(
+          axis.text.x = element_text(angle = 90, hjust = 1),
           panel.background = element_blank(),
           plot.background = element_rect(fill="#ebe5e0", color=NA),
           panel.grid.major = element_blank(),
@@ -612,32 +612,6 @@ output$participantPlotUI <- renderUI({
       ggplot() +
         annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
         theme_void()
-    }
-  })
-  
-  # Duration table
-  output$participantDuration <- DT::renderDataTable({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    duration_data <- data |>
-      mutate(
-        EventTime = EventTime/1000,
-        duration = Results.reception.time - EventTime,
-        duration = round(duration/60, 1)
-      ) |>
-      group_by(MD5.hash.of.participant.s.IP.address) |>
-      summarise(duration = max(duration)) |>
-      ungroup()
-    
-    # participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
-    if (ncol(duration_data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- duration_data
-      DT::datatable(summary_stats, rownames = TRUE)
-    } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No duration data found."), rownames = FALSE)
     }
   })
   
