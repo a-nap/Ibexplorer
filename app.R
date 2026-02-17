@@ -94,11 +94,10 @@ ui <- fluidPage(
 
 ### Search phrase input for filtering rows ----------------------------------
 
-      p(strong("Include only rows with this exact phrase:")),
       textInput(inputId = "search_phrase",
-                label = "",
+                label = tagList(p(strong("Include only rows with this exact phrase:"))),
                 value = ""),
-      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
+      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'."),
     ),
 
 ## Main panel --------------------------------------------------------------
@@ -155,21 +154,22 @@ ui <- fluidPage(
                  # hr(),
                  h3("Custom variable overview"),
                  fluidRow(
+                   style='padding-bottom:5px; ',
                    column(width = 4,
                    textInput(
                    inputId = "custom_var_name",
-                   label   = "Type your variable name here (e.g., 'List' or 'Condition'):",
+                   label   = "Type your variable name here:",
                    value   = "",
                    width   = "100%"),
-                   helpText("FIXME")
+                   helpText("For example 'List' or 'Condition'.")
                    ),
                    column(width = 4,
                           textInput(
                             inputId = "exclude_var_list",
-                            label   = "Exclude these values (comma-separated; e.g., 'Start' or 'undefined' or 'NULL'):",
+                            label   = "Exclude these values (comma-separated):",
                             value   = "",
                             width   = "100%"),
-                          helpText("FIXME")
+                          helpText("For example 'Start' or 'undefined' or 'NULL'.")
                    ),
                    column(width = 4,
                    checkboxInput(
@@ -423,6 +423,13 @@ server <- function(input, output, session) {
     # Optionally remove missing values
     if (input$remove_na) {
       duration_data <- na.omit(duration_data)
+    }
+    
+    # Optionally remove values
+    excl <- exclude_var_list() 
+    if (!is.null(excl)) {
+      duration_data <- duration_data |>
+        filter(!(duration_data[[var_col]] %in% excl))
     }
     
     # Plot
