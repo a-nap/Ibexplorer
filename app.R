@@ -130,7 +130,7 @@ ui <- fluidPage(
                    column(width = 3,
                           textInput(
                             inputId = "exclude_var_list",
-                            label   = "Exclude the values (comma-separated):",
+                            label   = "Exclude values (comma-separated):",
                             value   = "",
                             width   = "100%"),
                           helpText("For example 'Start' or 'undefined' or 'NULL'.")
@@ -339,6 +339,8 @@ server <- function(input, output, session) {
         names(data)[which(col_names == "condition")[1]]
       } else if ("treatment" %in% col_names) {
         names(data)[which(col_names == "treatment")[1]]
+      } else if ("item" %in% col_names) {
+        names(data)[which(col_names == "item")[1]]
       } else {
         NULL
       }
@@ -440,6 +442,12 @@ server <- function(input, output, session) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
         names(data)[which(col_names == "group")[1]]
+      } else if ("condition" %in% col_names) {
+        names(data)[which(col_names == "condition")[1]]
+      } else if ("treatment" %in% col_names) {
+        names(data)[which(col_names == "treatment")[1]]
+      } else if ("item" %in% col_names) {
+        names(data)[which(col_names == "item")[1]]
       } else {
         NULL
       }
