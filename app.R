@@ -176,27 +176,34 @@ ui <- fluidPage(
 - (Optional) Select the columns you want to include.
 - (Optional) Enter a search phrase to filter rows.
 - View the processed data in the **Table Preview** tab. 
+- (Optional) Preview the data in the **Data summary** and **Participant overview** tabs.
 - Download the filtered dataset by clicking **Download formatted CSV**.
 
 ### Data Summary
 
 This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
+This information can be useful for checking whether there is an equal amount of lists, conditions, and items in the recorded data.
 
 - **Occurrences** bar plot shows how many times each group appears in the data. Helps identify unbalanced data.
 - **Average duration** boxplot shows the duration in minutes of each trial for each group. Helps identify cases which take longer or shorter on average.
 - Enter the variable name to plot.
 - (Optional) Input comma-separated values in the second text field to exclude values from the plots. This can also be a space, NULL, Start, End, or any other value.
-- (Optional) Use the slider to zoom in and out on duration ranges in the boxplot.
+- (Optional) Use the slider to zoom in and out on duration ranges in the boxplot. The slider appears only after data upload.
 - Keep or remove missing values (NA) in the checkbox.
 - If the app does not detect your list variable, you can specify it in the text field.
-- An example use is to check whether there is an equal amount of lists, conditions, and items in the recorded data. 
+
+You can download the plots by right-clicking on them and selecting 'Save image as...'.
 
 ### Participant overview
 
-This tab shows two plots and summary tables of counts and durations.
+This tab shows two plots and a summary table of counts and durations.
+This information is useful for determining participants that are outside of the normal range (took the experiment several times, and took too long or too short to complete the experiment).
 
 - **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
 - **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
+
+You can download the plots by right-clicking on them and selecting 'Save image as...'.
+
 
 ### Troubleshooting
 
@@ -575,9 +582,6 @@ server <- function(input, output, session) {
   
 
 # Participant count
-
-  plotOutput("participantPlot", height = paste0(height, "px"))
-})
 
   output$participantPlot <- renderPlot({
     req(filtered_data())
