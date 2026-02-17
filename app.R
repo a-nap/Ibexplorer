@@ -635,13 +635,13 @@ output$conditionSummary <- DT::renderDataTable({
   if (!is.null(cond_var()) && trimws(cond_var()) != "") {
     user_col <- tolower(cond_var())
     if (user_col %in% col_names) {
-      list_col <- names(data)[which(col_names == user_col)[1]]
+      cond_col <- names(data)[which(col_names == user_col)[1]]
     } else {
-      list_col <- NULL
+      cond_col <- NULL
     }
   } else {
     # fallback logic
-    list_col <- if ("condition" %in% col_names) {
+    cond_col <- if ("condition" %in% col_names) {
       names(data)[which(col_names == "condition")[1]]
     } else if ("treatment" %in% col_names) {
       names(data)[which(col_names == "treatment")[1]]
@@ -651,13 +651,13 @@ output$conditionSummary <- DT::renderDataTable({
   }
   
   # Stop if no valid condition column found
-  if (is.null(list_col)) {
+  if (is.null(cond_col)) {
     return(DT::datatable(data.frame(Message = "No condition column found."), rownames = FALSE))
   }
   
   # Group by the found column and summarize
   summary_data <- data |>
-    group_by(.data[[list_col]]) |>
+    group_by(.data[[cond_col]]) |>
     summarize(count = n(), .groups = 'drop')
   
   DT::datatable(summary_data, rownames = TRUE)
@@ -677,13 +677,13 @@ output$conditionPlot <- renderPlot({
   if (!is.null(cond_var()) && trimws(cond_var()) != "") {
     user_col <- tolower(cond_var())
     if (user_col %in% col_names) {
-      list_col <- names(data)[which(col_names == user_col)[1]]
+      cond_col <- names(data)[which(col_names == user_col)[1]]
     } else {
-      list_col <- NULL
+      cond_col <- NULL
     }
   } else {
     # original fallback logic
-    list_col <- if ("condition" %in% col_names) {
+    cond_col <- if ("condition" %in% col_names) {
       names(data)[which(col_names == "condition")[1]]
     } else if ("treatment" %in% col_names) {
       names(data)[which(col_names == "treatment")[1]]
@@ -693,17 +693,17 @@ output$conditionPlot <- renderPlot({
   }
   
   # Stop if no valid list column found
-  if (is.null(list_col)) {
+  if (is.null(cond_col)) {
     stop("No valid condition column found.")
   }
   
   # Group by the found column and summarize
   data <- data %>%
-    group_by(.data[[list_col]]) %>%
+    group_by(.data[[cond_col]]) |>
     summarize(count = n(), .groups = 'drop')
   
   # Set up for plotting
-  grouping_column <- list_col
+  grouping_column <- cond_col
   data[[grouping_column]] <- as.factor(data[[grouping_column]])
   
   # Generate the bar plot
