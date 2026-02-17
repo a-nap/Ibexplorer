@@ -155,14 +155,23 @@ ui <- fluidPage(
                  # hr(),
                  h3("Custom variable overview"),
                  fluidRow(
-                   column(width = 6,
+                   column(width = 4,
                    textInput(
                    inputId = "custom_var_name",
                    label   = "Type your variable name here (e.g., 'List' or 'Condition'):",
                    value   = "",
-                   width   = "100%")
+                   width   = "100%"),
+                   helpText("FIXME")
                    ),
-                   column(width = 6,
+                   column(width = 4,
+                          textInput(
+                            inputId = "exclude_var_list",
+                            label   = "Exclude these values (comma-separated; e.g., 'Start' or 'undefined' or 'NULL'):",
+                            value   = "",
+                            width   = "100%"),
+                          helpText("FIXME")
+                   ),
+                   column(width = 4,
                    checkboxInput(
                      inputId = "remove_na",
                      label   = "Remove missing values (NA)?",
@@ -310,6 +319,13 @@ server <- function(input, output, session) {
       data <- na.omit(data)
     }
     
+    # Optionally remove values
+    excl <- exclude_var_list() 
+    if (!is.null(excl)) {
+      data <- data %>%
+        filter(!(.data[[var_col]] %in% excl))
+    }
+    
     # Calculate the mean and standard deviation
     mean_value <- mean(data$count, na.rm = TRUE)
     sem_value   <- sem(data$count)
@@ -442,6 +458,18 @@ server <- function(input, output, session) {
     }
   })  
 
+  # Exclude these values
+  
+  exclude_var_list <- reactive({
+    val <- input$exclude_var_list
+    if (is.null(val) || trimws(val) == "") {
+      return(NULL)
+    } else {
+      strsplit(val, ",")[[1]] |>
+        trimws() 
+    }
+  })
+  
 ## Data input processing ---------------------------------------------------
 
   # Process the file when the "Submit" button is clicked
