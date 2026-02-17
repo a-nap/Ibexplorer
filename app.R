@@ -232,6 +232,147 @@ Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 # Define server logic
 server <- function(input, output, session) {
   
+  
+  
+
+## Feature development -----------------------------------------------------
+
+  # Variable count plot
+  output$varPlot <- renderPlot({
+    req(filtered_data())
+    
+    data <- filtered_data() |>
+      rename_with(~ make.unique(tolower(.)))
+    
+    # Find list column
+    col_names <- tolower(names(data))
+    
+    if (!is.null(list_var()) && trimws(list_var()) != "") {
+      user_col <- tolower(list_var())
+      if (user_col %in% col_names) {
+        list_col <- names(data)[which(col_names == user_col)[1]]
+      } else {
+        list_col <- NULL
+      }
+    } else {
+      # fallback logic
+      list_col <- if ("list" %in% col_names) {
+        names(data)[which(col_names == "list")[1]]
+      } else if ("group" %in% col_names) {
+        names(data)[which(col_names == "group")[1]]
+      } else {
+        NULL
+      }
+    }
+    
+    # Stop if no valid variable found
+    if (is.null(list_col)) {
+      stop("No valid variable found.")
+    }
+    
+    # Group by the found column and summarize
+    data <- data |>
+      group_by(.data[[list_col]]) |>
+      summarize(count = n(), .groups = 'drop')
+    
+    # Set up for plotting
+    grouping_column <- list_col
+    data[[grouping_column]] <- as.factor(data[[grouping_column]])
+    
+    # Generate the bar plot
+    ggplot(data, 
+           aes(x = .data[[grouping_column]], y = count)) +
+      geom_bar(stat = "identity", fill = "#342e1a") +
+      geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
+      labs(
+        x = tools::toTitleCase(grouping_column),
+        y = "Row count",
+        title = "Occurrences of each list in the data"
+      ) +
+      theme_bw() +
+      theme(
+        panel.background = element_blank(),
+        plot.background = element_rect(fill = "#ebe5e0", color = NA),
+        panel.grid.major = element_blank(),
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
+      )
+  })
+  
+  
+  # List duration plot
+  output$listDurationPlot <- renderPlot({
+    req(filtered_data())
+    
+    data <- filtered_data() |>
+      rename_with(~ make.unique(tolower(.)))
+    
+    # Find list column
+    col_names <- names(data)
+    
+    if (!is.null(list_var()) && trimws(list_var()) != "") {
+      user_col <- tolower(list_var())
+      if (user_col %in% col_names) {
+        list_col <- names(data)[which(col_names == user_col)[1]]
+      } else {
+        list_col <- NULL
+      }
+    } else {
+      # fallback logic
+      list_col <- if ("list" %in% col_names) {
+        names(data)[which(col_names == "list")[1]]
+      } else if ("group" %in% col_names) {
+        names(data)[which(col_names == "group")[1]]
+      } else {
+        NULL
+      }
+    }
+    
+    # Stop if no valid list column found
+    if (is.null(list_col)) {
+      stop("No valid list column found.")
+    }
+    
+    # Calculate average duration per list
+    duration_data <- data |>
+      mutate(
+        EventTime = eventtime / 1000,
+        duration = results.reception.time - EventTime,
+        duration = round(duration / 60, 1)  # minutes
+      ) |>
+      mutate(
+        !!list_col := as.factor(.data[[list_col]])   
+      )  
+    
+    ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
+      geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
+      labs(
+        title = "Average duration per list",
+        y = "Time in minutes",
+        x = tools::toTitleCase(list_col)
+      ) +
+      theme_bw() +
+      theme(
+        # axis.text.x = element_text(angle = 90, hjust = 1),
+        panel.background = element_blank(),
+        plot.background = element_rect(fill = "#ebe5e0", color = NA),
+        panel.grid.major = element_blank(),
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
+      )
+  })
+  
+  
+  # Optionally, input the list variable 
+  
+  list_var <- reactive({
+    val <- input$list_var_name
+    if (is.null(val) || trimws(val) == "") {
+      return(NULL)
+    } else {
+      return(val)
+    }
+  })  
 
 ## Data input processing ---------------------------------------------------
 
@@ -500,10 +641,10 @@ output$conditionSummary <- DT::renderDataTable({
     }
   } else {
     # fallback logic
-    list_col <- if ("list" %in% col_names) {
-      names(data)[which(col_names == "list")[1]]
-    } else if ("group" %in% col_names) {
-      names(data)[which(col_names == "group")[1]]
+    list_col <- if ("condition" %in% col_names) {
+      names(data)[which(col_names == "condition")[1]]
+    } else if ("treatment" %in% col_names) {
+      names(data)[which(col_names == "treatment")[1]]
     } else {
       NULL
     }
