@@ -6,7 +6,7 @@ library(psych)
 library(DT)
 library(bslib)
 
-# options(shiny.maxRequestSize = 30*1024^2) 
+options(shiny.maxRequestSize = 30*1024^2)
 
 ibextheme <- bs_theme(
   fg = "#201010", 
@@ -329,7 +329,7 @@ server <- function(input, output, session) {
         xmin = -Inf, xmax = Inf,
         ymin = ymin,
         ymax = ymax,
-        fill = "#201010",
+        fill = "#342e1a",
         alpha = 0.15
       ) +
       geom_bar(stat = "identity", fill = "#794729") +
@@ -984,24 +984,47 @@ output$participantPlotUI <- renderUI({
       
       # Compute mean duration
       mean_duration <- mean(duration_data$duration, na.rm = TRUE)
-      
+      outlier_max <- mean_duration + 2*sd(duration_data$duration, na.rm = TRUE)
+      outlier_min <- mean_duration - 2*sd(duration_data$duration, na.rm = TRUE)
+      if (outlier_min < 0) {
+        outlier_min<-0
+      } 
+                  
       # Histogram
       ggplot(duration_data, aes(x = duration)) +
         geom_histogram(
-          binwidth = 5,  # 1 minute per bin, adjust as needed
-          fill = "#342e1a",
+          aes(y = after_stat(density)),
+          binwidth = 4,  # 1 minute per bin, adjust as needed
+          fill = "#794729",
           color = "#ebe5e0"
         ) +
+        geom_density(color = "#201010",
+                     linewidth=1,
+                     alpha=0.5) +
         geom_vline(
           xintercept = mean_duration,
-          color = "#7c6f42",
+          color = "#201010",
           linewidth = 1,
           linetype = "dashed"
+        ) +
+        geom_vline(
+          xintercept = outlier_max,
+          color = "#201010",
+          linewidth = 1,
+          linetype = "dotted",
+          alpha=0.5
+        ) +
+        geom_vline(
+          xintercept = outlier_min,
+          color = "#201010",
+          linewidth = 1,
+          linetype = "dotted",
+          alpha=0.5
         ) +
         labs(
           title = "Distribution of participant durations",
           x = "Time in minutes",
-          y = "Number of participants"
+          y = "Density"
         ) +
         theme_bw() +
         theme(
