@@ -412,7 +412,6 @@ server <- function(input, output, session) {
       ) +
       theme_bw() +
       theme(
-        # axis.text.x = element_text(angle = 90, hjust = 1),
         panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
@@ -895,7 +894,7 @@ output$participantPlotUI <- renderUI({
         ungroup()
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#342e1a") + # FIXME
+        geom_bar(stat = "identity", fill="#201010") + 
         labs(
           title = "Occurrences of each participant in the data",
           y = "Participant IP",
@@ -903,7 +902,6 @@ output$participantPlotUI <- renderUI({
         ) +
         theme_bw() +
         theme(
-          axis.text.x = element_text(angle = 90, hjust = 1),
           panel.background = element_blank(),
           plot.background = element_rect(fill="#ebe5e0", color=NA),
           panel.grid.major = element_blank(),
@@ -1028,67 +1026,6 @@ output$participantPlotUI <- renderUI({
     }
   })
   
-  
-  # Experiment duration per participant
-
-  output$participantDurationPlotUI <- renderUI({
-    n <- nrow(filtered_data())  # number of participants
-    max_height <- 700          # cap the height at 700px
-    height <- min(50 + n * 5, max_height)  # 3px per participant + base
-    
-    plotOutput("participantDurationPlot", height = paste0(height, "px"))
-  })
-  
-  output$participantDurationPlot <- renderPlot({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      duration_data <- data |>
-        mutate(
-        EventTime = EventTime/1000,
-               duration = Results.reception.time - EventTime,
-               duration = round(duration/60, 1)
-          ) |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(duration = max(duration)) |>
-        ungroup()
-      
-      mean_data <- duration_data |>
-        summarise(mean_duration = mean(duration, na.rm = TRUE))
-      
-      ggplot(duration_data) +
-        geom_vline(
-          data = mean_data,
-          aes(xintercept = mean_duration),
-          color = "#342e1a", # FIXME
-          linewidth = 1,
-          inherit.aes = FALSE
-        ) +
-        geom_bar(aes(y = MD5.hash.of.participant.s.IP.address, x = duration),
-                 stat = "identity", fill="#7c6f42") +
-        labs(
-          title = "Duration of the experiment",
-          y = "Participant IP",
-          x = "Time in minutes"
-        ) +
-        theme_bw() +
-        theme(
-          # axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_blank(),
-          plot.background = element_rect(fill="#ebe5e0", color=NA),
-          panel.grid.major = element_blank(),
-          legend.background = element_blank(),
-          legend.box.background = element_blank()
-        )
-    } else {
-      # Display a message if the participant ID column is missing
-      ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
-        theme_void()
-    }
-    })
   
 
 ## Data download -----------------------------------------------------------
