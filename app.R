@@ -67,7 +67,7 @@ ui <- fluidPage(
 ## Sidebar -----------------------------------------------------------------
     
     sidebarPanel(
-      width = 2,
+      width = 3,
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
@@ -158,10 +158,10 @@ ui <- fluidPage(
                    column(width = 6,
                    textInput(
                    inputId = "custom_var_name",
-                   label   = "Type your variable name here:",
-                   value   = ""),
-                   helpText("For example 'List' or 'Condition'."))
-                   ,
+                   label   = "Type your variable name here (e.g., 'List' or 'Condition'):",
+                   value   = "",
+                   width   = "100%")
+                   ),
                    column(width = 6,
                    checkboxInput(
                      inputId = "remove_na",
@@ -404,8 +404,16 @@ server <- function(input, output, session) {
         !!var_col := as.factor(.data[[var_col]])   
       )  
     
+    # Optionally remove missing values
+    if (input$remove_na) {
+      duration_data <- na.omit(duration_data)
+    }
+    
+    # Plot
     ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
-      geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
+      geom_boxplot(fill = "#ebe5e0", 
+                   outlier.color = "#201010", 
+                   outlier.size = 2) +
       labs(
         title = paste0("Average duration per ", var_col),
         y = "Time in minutes",
