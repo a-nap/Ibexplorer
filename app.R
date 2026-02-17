@@ -180,6 +180,8 @@ ui <- fluidPage(
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
 
+**Workflow**: Upload → Process → Filter → View → Download
+
 - Upload a raw PCIbex CSV results file.
 - Click the **Submit** button to process the file.
 - (Optional) Select the columns you want to include.
@@ -187,24 +189,25 @@ ui <- fluidPage(
 - View the processed data in the **Table Preview** tab. 
 - Download the filtered dataset by clicking **Download formatted CSV**.
 
-### Plots
+### Data Summary
 
-**List / Group plots**
+This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
 
-- *List occurrences* bar plot shows how many times each list or group appears in the data. Should probably be the same number for each list.
-- *Average duration* boxplot shows the duration in minutes of each trial for each list/group. Helps identify lists which take longer or shorter on average.
+- **Occurrences** bar plot shows how many times each group appears in the data. Helps identify unbalanced data.
+- **Average duration** boxplot shows the duration in minutes of each trial for each group. Helps identify cases which take longer or shorter on average.
+- Enter the variable name to plot.
+- (Optional) Input comma-separated values in the second text field to exclude values from the plots. This can also be a space, NULL, Start, End, or any other value.
+- (Optional) Use the slider to zoom in and out on duration ranges in the boxplot.
+- Keep or remove missing values (NA) in the checkbox.
 - If the app does not detect your list variable, you can specify it in the text field.
+- An example use is to check whether there is an equal amount of lists, conditions, and items in the recorded data. 
 
-**Condition plots**
+### Participant overview
 
-- *Condition occurrences* bar plot showing how many trials are in each condition. Should probably be the same number for each condition.
-- *Average duration* boxplot shows the trial durations for each condition. Helps identify experimental conditions which tend to be longer or shorter.
-- If the app does not detect your condition variable, you can specify it in the text field.
+This tab shows two plots and summary tables of counts and durations.
 
-**Participant plots**
-
-- *Participant counts* bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
-- *Participant durations* histogram shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. Dashed vertical line: mean duration across all participants.
+- **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
+- **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
 
 ### Troubleshooting
 
@@ -212,12 +215,22 @@ Follow these steps if you're having trouble uploading and processing your data.
 
 - Ensure that your file is in CSV format.
 - Check that the file size does not exceed 30MB.
-- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time.', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
+- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
+- It's always a good idea to double-check the spelling.
+- The plots might take a few seconds to load. 
+- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
 - The explorer works only with the unmodified PCIbex results file.
 - Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
 
 Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+
+### Version
+
+
+- **1.02**: Formatted plots; changed condition and list plots to use custom input with data selection.  
+- **1.01**: Added plots for conditions, lists, and participants.  
+- **1.00**: First version.
                  ", fragment.only = TRUE))
         )
       )
