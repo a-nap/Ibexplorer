@@ -99,6 +99,7 @@ ui <- fluidPage(
                 label = tagList(p(strong("Include only rows with this exact phrase:"))),
                 value = ""),
       helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'."),
+
     ),
 
 ## Main panel --------------------------------------------------------------
@@ -121,7 +122,7 @@ ui <- fluidPage(
 
                  h3("Custom variable overview"),
                  fluidRow(
-                   style='padding-bottom:10px; ',
+                   style='padding-bottom:15px; ',
                    column(width = 3,
                    textInput(
                    inputId = "custom_var_name",
@@ -160,22 +161,24 @@ ui <- fluidPage(
 
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
-                   column(width = 3,
-                   uiOutput("participant_box1")
+                   column(width = 4,
+                   uiOutput("participant_count")
                    ),
                    column(width = 4,
-                   uiOutput("participant_box3")
+                   uiOutput("average_trial")
                    ),
-                   column(width = 5,
+                   column(width = 4,
                    uiOutput("participant_box2")
                    )
                    ), # FIXME
                  fluidRow(
                    column(width = 6,
-                          plotOutput("participantPlot", height = "500px")
+                          plotOutput("participantPlot", 
+                                     height = "500px")
                           ),
                    column(width = 6,
-                          plotOutput("participantDurationHistogramPlot")
+                          plotOutput("participantDurationHistogramPlot",
+                                     height = "500px")
                    )
                  ),
                  fluidRow(
@@ -247,7 +250,14 @@ Follow these steps if you're having trouble uploading and processing your data.
 - **1.02**: Formatted plots; changed condition and list plots to use custom input with data selection.  
 - **1.01**: Added plots for conditions, lists, and participants.  
 - **1.00**: First version.
+
+### Links
+
+- [GitHub page](https://github.com/a-nap/Ibexplorer)
+- [Project page](https://pryslopska.com/projects/ibexplorer/)
+
                  ", fragment.only = TRUE))
+                 
         )
       )
     )
@@ -296,154 +306,6 @@ server <- function(input, output, session) {
   })
   
 
-# Dev cards ---------------------------------------------------------------
-
-## Participant count 
-  # FIXME
-
-  output$participant_box1 <- renderUI({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    part_nr <- if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      data |>
-        dplyr::distinct(MD5.hash.of.participant.s.IP.address) |>
-        nrow()
-    } else {
-      NA
-    }
-    
-    
-    div(
-      class = "well",
-      style = "
-    background-color: #201010;
-    padding: 10px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      tags$div(
-        style = "display: flex; align-items: center; gap: 10px;",
-        icon("users", style = "font-size: 2em; color: #ebe5e0;"),
-        h4("Participant count", style = "margin: 0;")
-      ),
-      if (is.na(part_nr)) {
-        tags$em("No participant ID column detected")
-      } else {
-        h2(part_nr, style = "margin-top: 10px;")
-      }
-    )
-
-  })
-  
-  
-  output$participant_box2 <- renderUI({
-    req(filtered_data())
-    data <- filtered_data()
-
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      
-      # Calculate max duration per participant
-      duration_data <- data |>
-        mutate(
-          EventTime = EventTime / 1000,
-          duration = Results.reception.time - EventTime,
-          duration = round(duration / 60, 1)
-        ) |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(duration = max(duration, na.rm = TRUE)) |>
-        ungroup()
-      
-      # Compute mean duration
-      median_duration <- round(median(duration_data$duration, na.rm = TRUE),1)
-      sd_duration <- round(sd(duration_data$duration, na.rm = TRUE),1)
-
-    } else {
-       NA
-    }
-      
-    div(
-      class = "well",
-      style = "
-    background-color: #794729;
-    padding: 12px 16px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      
-      # Outer row
-      tags$div(
-        style = "display: flex; align-items: center; gap: 16px;",
-        
-        # Left column: icon
-        icon(
-          "hourglass-end",
-          style = "font-size: 4em; color: #ebe5e0;"
-        ),
-        
-        # Right column: text (stacked)
-        tags$div(
-          style = "display: flex; flex-direction: column;",
-          
-          h5(
-            "Median experiment duration (SD)",
-            style = "margin: 0;"
-          ),
-          
-          if (is.na(median_duration)) {
-            tags$em("Participant ID or duration column missing.")
-          } else {
-            h2(
-              paste0(median_duration, " minutes (", sd_duration, ")"),
-              style = "margin: 4px 0 0 0;"
-            )
-          }
-        )
-      )
-    )
-
-  })
-  
-  
-  output$participant_box3 <- renderUI({
-    req(filtered_data())
-    data <- filtered_data()
-
-    
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      
-    avg_trials <- data |>
-      group_by(MD5.hash.of.participant.s.IP.address) |>
-      summarise(trials = n(), .groups = "drop") |>
-      summarise(mean_trials = round(median(trials, na.rm = TRUE), 1)) |>
-      pull(mean_trials)
-    } else {
-      NA
-    }
-    
-    div(
-      class = "well",
-      style = "
-    background-color: #7c6f42;
-    padding: 10px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      tags$div(
-        style = "display: flex; align-items: center; gap: 10px;",
-        icon("list-check", style = "font-size: 2em; color: #ebe5e0;"),
-        h4("Avg Trials / Participant", style = "margin: 0;")
-      ),
-      if (is.na(avg_trials)) {
-        tags$em("Participant ID column missing.")
-      } else {
-        h2(avg_trials, style = "margin-top: 10px;")
-      }
-    )
- 
-
-  })
-  
   
 ## Table preview -----------------------------------------------------------
 
@@ -466,7 +328,11 @@ server <- function(input, output, session) {
     if (ncol(numeric_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- psych::describe(numeric_data) |> 
-        mutate(across(everything()))
+        mutate(across(everything())) |>
+        select(-vars, -trimmed, -mad, -skew, -kurtosis) |>
+        mutate(mean = round(mean, 2),
+               sd = round(sd, 2),
+               se = round(se, 2))
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
@@ -872,6 +738,190 @@ server <- function(input, output, session) {
   })
   
   
+  ### Cards ---------------------------------------------------------------
+  
+  ## Participant count 
+  output$participant_count <- renderUI({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    part_nr <- if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      data |>
+        dplyr::distinct(MD5.hash.of.participant.s.IP.address) |>
+        nrow()
+    } else {
+      NA
+    }
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #201010;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "users",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Participant count",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(part_nr)) {
+            tags$em("Participant ID column missing.")
+          } else {
+            h2(
+              part_nr,
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+    
+  })
+  
+  
+  output$participant_box2 <- renderUI({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      
+      # Calculate max duration per participant
+      duration_data <- data |>
+        mutate(
+          EventTime = EventTime / 1000,
+          duration = Results.reception.time - EventTime,
+          duration = round(duration / 60, 1)
+        ) |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(duration = max(duration, na.rm = TRUE)) |>
+        ungroup()
+      
+      # Compute mean duration
+      median_duration <- round(median(duration_data$duration, na.rm = TRUE),1)
+      sd_duration <- round(sd(duration_data$duration, na.rm = TRUE),1)
+      
+    } else {
+      NA
+    }
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #794729;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "hourglass-end",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Median duration (SD)",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(median_duration)) {
+            tags$em("Participant ID or duration column missing.")
+          } else {
+            h2(
+              paste0(median_duration, " minutes (", sd_duration, ")"),
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+  })
+  
+  
+  output$average_trial <- renderUI({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      
+      avg_trials <- data |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(trials = n(), .groups = "drop") |>
+        summarise(mean_trials = round(median(trials, na.rm = TRUE), 1)) |>
+        pull(mean_trials)
+    } else {
+      NA
+    }
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #7c6f42;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "list-check",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Avg Trials / Participant",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(avg_trials)) {
+            tags$em("Participant ID column missing.")
+          } else {
+            h2(
+              avg_trials,
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+  })
 
 ## Data download -----------------------------------------------------------
   
