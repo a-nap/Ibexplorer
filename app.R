@@ -333,16 +333,7 @@ server <- function(input, output, session) {
         h2(part_nr, style = "margin-top: 10px;")
       }
     )
-    
-    # div(
-    #   class = "well",
-    #   h4("Participant count"),
-    #   if (is.na(part_nr)) {
-    #     tags$em("No participant ID column detected")
-    #   } else {
-    #     h2(part_nr)
-    #   }
-    # )
+
   })
   
   
@@ -410,36 +401,7 @@ server <- function(input, output, session) {
         )
       )
     )
-    
-  #   div(
-  #     class = "well",
-  #     style = "
-  #   background-color: #794729;
-  #   padding: 10px;
-  #   margin: 10px;
-  #   color: #ebe5e0;
-  # ",
-  #     tags$div(
-  #       style = "display: flex; align-items: center; gap: 10px;",
-  #       icon("hourglass-end", style = "font-size: 2em; color: #ebe5e0;"),
-  #       h4("Median experiment duration (SD)", style = "margin: 0;")
-  #     ),
-  #     if (is.na(median_duration)) {
-  #       tags$em("Participant ID or duration column missing.")
-  #     } else {
-  #       h2(paste0(median_duration, " minutes (", sd_duration,")"), style = "margin-top: 10px;")
-  #     }
-  #   )
-    
-    # div(
-    #   class = "well",
-    #   h4("Median experiment duration (SD)"),
-    #   if (is.na(median_duration)) {
-    #     tags$em("Participant ID or duration column missing.")
-    #   } else {
-    #     h2(paste0(median_duration, " minutes (", sd_duration,")"))
-    #   }
-    # )
+
   })
   
   
@@ -479,15 +441,7 @@ server <- function(input, output, session) {
       }
     )
  
-    # div(
-    #   class = "well",
-    #   h4("Avg Trials/Participant"),
-    #   if (is.na(avg_trials)) {
-    #     tags$em("Participant ID column missing.")
-    #   } else {
-    #     h2(avg_trials)
-    #   }
-    # )
+
   })
   
   
