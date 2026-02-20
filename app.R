@@ -160,9 +160,15 @@ ui <- fluidPage(
 
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
-                          plotOutput("participantPlot", height = "500px"),
-                          plotOutput("participantDurationHistogramPlot"),
-                          DT::dataTableOutput("participantSummary")
+                   column(width = 6,
+                          plotOutput("participantPlot", height = "500px")
+                          ),
+                   column(width = 6,
+                          plotOutput("participantDurationHistogramPlot")
+                   )
+                 ),
+                 fluidRow(
+                   DT::dataTableOutput("participantSummary")
                  )
         ),
 
