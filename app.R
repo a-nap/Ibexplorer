@@ -123,7 +123,6 @@ ui <- fluidPage(
 
                  h3("Custom variable overview"),
                  fluidRow(
-                   style='padding-bottom:15px; ',
                    column(width = 3,
                    textInput(
                    inputId = "custom_var_name",
@@ -169,9 +168,9 @@ ui <- fluidPage(
                    uiOutput("average_trial")
                    ),
                    column(width = 4,
-                   uiOutput("participant_box2")
+                   uiOutput("median_duration")
                    )
-                   ), # FIXME
+                   ), 
                  fluidRow(
                    column(width = 6,
                           plotOutput("participantPlot", 
@@ -838,7 +837,7 @@ server <- function(input, output, session) {
   })
   
   
-  output$participant_box2 <- renderUI({
+  output$median_duration <- renderUI({
     req(filtered_data())
     data <- filtered_data()
     

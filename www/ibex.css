@@ -147,3 +147,9 @@
   background-color: #794729 !important;
   width: 3px !important;
 }
+
+/* Prettifying fluid rows */
+
+.row {
+  margin-bottom: 15px !important;
+}
