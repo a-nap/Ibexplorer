@@ -1,0 +1,107 @@
+/* Base container stays the same */
+.form-check,
+.shiny-input-container .checkbox,
+.shiny-input-container .radio {
+  display: block;
+  min-height: 1.5rem;
+  padding-left: 0;
+  margin-bottom: .25rem;
+}
+
+/* Hide the native checkbox and use it only for state */
+.form-check-input[type="checkbox"],
+.shiny-input-container .checkbox input[type="checkbox"],
+.shiny-input-container .checkbox-inline input[type="checkbox"],
+.shiny-input-container .radio input[type="checkbox"],
+.shiny-input-container .radio-inline input[type="checkbox"] {
+  position: relative;
+  width: 2.8em;          /* overall switch width */
+  height: 1.4em;         /* overall switch height */
+  margin-top: .15em;
+  margin-right: .5em;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #ccc;
+  border-radius: 1.4em;  /* rounded track */
+  border: none;
+  outline: none;
+  transition: background-color .25s ease;
+    --bs-form-check-bg-image: none !important;
+  background-image: none !important;
+}
+
+/* Track color when checked */
+.form-check-input[type="checkbox"]:checked,
+.shiny-input-container .checkbox input[type="checkbox"]:checked,
+.shiny-input-container .checkbox-inline input[type="checkbox"]:checked,
+.shiny-input-container .radio input[type="checkbox"]:checked,
+.shiny-input-container .radio-inline input[type="checkbox"]:checked {
+  background-color: #794729;   /* your theme color */
+}
+
+/* Slider knob */
+.form-check-input[type="checkbox"]::before,
+.shiny-input-container .checkbox input[type="checkbox"]::before,
+.shiny-input-container .checkbox-inline input[type="checkbox"]::before,
+.shiny-input-container .radio input[type="checkbox"]::before,
+.shiny-input-container .radio-inline input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 2.8px;
+  bottom: 0.2px;
+  left: 3.5px;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background-color: #EBE5E0;   /* knob color */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform .25s ease;
+}
+
+/* Move knob to the right when checked */
+.form-check-input[type="checkbox"]:checked::before,
+.shiny-input-container .checkbox input[type="checkbox"]:checked::before,
+.shiny-input-container .checkbox-inline input[type="checkbox"]:checked::before,
+.shiny-input-container .radio input[type="checkbox"]:checked::before,
+.shiny-input-container .radio-inline input[type="checkbox"]:checked::before {
+  transform: translateX(1.35em);
+}
+
+.form-check-input:checked[type="checkbox"],
+.shiny-input-container .checkbox input:checked[type="checkbox"] {
+  background-position: 5% center; /* 5% pulls left from center */
+  /* background-position: none; */
+  /* or 15% center for even more left */
+  /* or 0.3em center for fixed pixel offset */
+}
+
+/* Optional: focus ring for accessibility */
+.form-check-input[type="checkbox"]:focus,
+.shiny-input-container .checkbox input[type="checkbox"]:focus,
+.shiny-input-container .checkbox-inline input[type="checkbox"]:focus,
+.shiny-input-container .radio input[type="checkbox"]:focus,
+.shiny-input-container .radio-inline input[type="checkbox"]:focus {
+  box-shadow: 0 0 0 .15rem rgba(121,71,41,0.35);
+}
+
+/* Radios can keep the old style if you like */
+.form-check-input[type="radio"],
+.shiny-input-container .checkbox input[type="radio"],
+.shiny-input-container .checkbox-inline input[type="radio"],
+.shiny-input-container .radio input[type="radio"],
+.shiny-input-container .radio-inline input[type="radio"] {
+  --bs-form-check-bg: var(--bs-body-bg);
+  width: 1.2em;
+  height: 1.2em;
+  margin-top: .15em;
+  vertical-align: top;
+  appearance: none;
+  background-color: var(--bs-form-check-bg);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  border: var(--bs-border-width) solid #857A78;
+  border-radius: 50%;
+}

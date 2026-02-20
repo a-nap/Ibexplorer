@@ -60,6 +60,9 @@ sem <- function(x) { sd(x,na.rm=T) / sqrt(length(x)); }
 # Define UI for the application
 ui <- fluidPage(
   theme = ibextheme,
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "ibex.css")
+  ),
   sidebarLayout(
 
 ## Sidebar -----------------------------------------------------------------
@@ -141,7 +144,7 @@ ui <- fluidPage(
                    column(width = 3,
                    checkboxInput(
                      inputId = "remove_na",
-                     label   = "Remove missing values?",
+                     label   = "Remove missing values",
                      value   = FALSE
                    ))
                    ),
