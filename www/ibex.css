@@ -1,4 +1,5 @@
-/* Base container stays the same */
+/* Making checkboxes into sliders */
+
 .form-check,
 .shiny-input-container .checkbox,
 .shiny-input-container .radio {
@@ -15,8 +16,8 @@
 .shiny-input-container .radio input[type="checkbox"],
 .shiny-input-container .radio-inline input[type="checkbox"] {
   position: relative;
-  width: 2.8em;          /* overall switch width */
-  height: 1.4em;         /* overall switch height */
+  width: 2.8em;
+  height: 1.4em;
   margin-top: .15em;
   margin-right: .5em;
   cursor: pointer;
@@ -24,7 +25,7 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   background-color: #ccc;
-  border-radius: 1.4em;  /* rounded track */
+  border-radius: 1.4em;
   border: none;
   outline: none;
   transition: background-color .25s ease;
@@ -38,7 +39,7 @@
 .shiny-input-container .checkbox-inline input[type="checkbox"]:checked,
 .shiny-input-container .radio input[type="checkbox"]:checked,
 .shiny-input-container .radio-inline input[type="checkbox"]:checked {
-  background-color: #794729;   /* your theme color */
+  background-color: #794729;
 }
 
 /* Slider knob */
@@ -55,7 +56,7 @@
   width: 1em;
   height: 1em;
   border-radius: 50%;
-  background-color: #EBE5E0;   /* knob color */
+  background-color: #EBE5E0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.3);
   transition: transform .25s ease;
 }
@@ -71,13 +72,10 @@
 
 .form-check-input:checked[type="checkbox"],
 .shiny-input-container .checkbox input:checked[type="checkbox"] {
-  background-position: 5% center; /* 5% pulls left from center */
-  /* background-position: none; */
-  /* or 15% center for even more left */
-  /* or 0.3em center for fixed pixel offset */
+  background-position: 5% center; 
 }
 
-/* Optional: focus ring for accessibility */
+/* Focus ring for accessibility */
 .form-check-input[type="checkbox"]:focus,
 .shiny-input-container .checkbox input[type="checkbox"]:focus,
 .shiny-input-container .checkbox-inline input[type="checkbox"]:focus,
@@ -86,7 +84,7 @@
   box-shadow: 0 0 0 .15rem rgba(121,71,41,0.35);
 }
 
-/* Radios can keep the old style if you like */
+/* Radios in the default style */
 .form-check-input[type="radio"],
 .shiny-input-container .checkbox input[type="radio"],
 .shiny-input-container .checkbox-inline input[type="radio"],
@@ -104,4 +102,48 @@
   background-size: contain;
   border: var(--bs-border-width) solid #857A78;
   border-radius: 50%;
+}
+
+/* Making the participant timeline pretty */
+
+#participantTimeline .vis-timeline {
+  border: 1px solid #201010;
+  background: #ebe5e0;
+}
+
+#participantTimeline .vis-item {
+  border-color: #201010;
+  background-color: #201010;
+  color: #ebe5e0;
+  font-size: 0.75em;
+}
+
+#participantTimeline .vis-item,
+#participantTimeline .vis-item.vis-line {
+  border-width: 3px;
+}
+
+#participantTimeline .vis-item.vis-dot {
+  border-width: 5px;
+  border-radius: 5px;
+}
+
+#participantTimeline .vis-item.vis-selected {
+  border-color: #7c6f42;
+  background-color: #7c6f42;
+}
+
+#participantTimeline .vis-background .vis-minor.vis-odd {
+  background: #ebe5e0;
+}
+
+#participantTimeline .vis-time-axis .vis-text {
+  color: #201010;
+  padding-top: 1px;
+  padding-left: 1px;
+}
+
+#participantTimeline .vis-current-time {
+  background-color: #794729 !important;
+  width: 3px !important;
 }
