@@ -172,6 +172,7 @@ ui <- fluidPage(
                    )
                    ), 
                  fluidRow(
+                   h3("Data preview"),
                    column(width = 6,
                           plotOutput("participantPlot", 
                                      height = "500px")
@@ -182,10 +183,12 @@ ui <- fluidPage(
                    )
                  ),
                  fluidRow(
-                   column(12, timevisOutput("participantTimeline"))
+                   column(h3("Data collection timeline"),
+                          width = 12, timevisOutput("participantTimeline"))
                  ),
                  fluidRow(
-                   column(12, DT::dataTableOutput("participantSummary"))
+                   column(h3("Participant summary"),
+                          width = 12, DT::dataTableOutput("participantSummary"))
                    
                  )
         ),
@@ -599,15 +602,16 @@ server <- function(input, output, session) {
       mutate(
         EventTime = EventTime/1000,
         duration = Results.reception.time - EventTime,
-        duration = round(duration/60, 1)
+        duration = round(duration/60, 1),
+        EventTimePOSIX = as.POSIXct(EventTime, origin = "1970-01-01", tz = "UTC")
       ) |>
       group_by(MD5.hash.of.participant.s.IP.address) |>
       summarise(count = n(),
-                duration = max(duration)) 
-    
-    # participant_data <- data |> 
-    #   group_by(MD5.hash.of.participant.s.IP.address) |> 
-    #   summarize(count = n())
+                duration = max(duration),
+                `data collection start` = min(EventTimePOSIX)
+      )
+
+
     if (ncol(participant_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- participant_data
@@ -984,4 +988,4 @@ shinyApp(ui = ui, server = server)
 
 
 # TODO --------------------------------------------------------------------
-# fix FIXMEs
+
