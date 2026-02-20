@@ -2,6 +2,7 @@
 library(shiny)
 library(tidyverse)
 library(shinythemes)
+library(timevis)
 library(psych)
 library(DT)
 library(bslib)
@@ -182,7 +183,11 @@ ui <- fluidPage(
                    )
                  ),
                  fluidRow(
-                   DT::dataTableOutput("participantSummary")
+                   column(12, timevisOutput("participantTimeline"))
+                 ),
+                 fluidRow(
+                   column(12, DT::dataTableOutput("participantSummary"))
+                   
                  )
         ),
 
@@ -306,7 +311,6 @@ server <- function(input, output, session) {
   })
   
 
-  
 ## Table preview -----------------------------------------------------------
 
   # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
@@ -735,6 +739,43 @@ server <- function(input, output, session) {
         ) +
         theme_void()
     }
+  })
+  
+
+### Timeline ----------------------------------------------------------------
+
+  
+  # Render timeline
+  output$participantTimeline <- renderTimevis({
+    
+    req(filtered_data())
+    data <- filtered_data()
+    
+    participant_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,  # Convert to seconds
+        date_time = as.POSIXct(EventTime, origin = "1970-01-01")
+      ) |>
+      group_by(`MD5.hash.of.participant.s.IP.address`) |>
+      summarise(
+        first_event = min(date_time, na.rm = TRUE),
+        trials = n(),
+        .groups = "drop"
+      ) |>
+      mutate(
+        id = row_number(),
+        content = MD5.hash.of.participant.s.IP.address
+      ) |>
+      select(id, content, start = first_event)
+    
+    timevis(
+      data = participant_data,
+      options = list(
+        height = "300px",
+          editable = FALSE,
+          showZoom = TRUE
+      )
+    )
   })
   
   
