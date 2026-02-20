@@ -2,17 +2,18 @@
 library(shiny)
 library(tidyverse)
 library(shinythemes)
+library(timevis)
 library(psych)
 library(DT)
 library(bslib)
 
-# options(shiny.maxRequestSize = 30*1024^2) 
+options(shiny.maxRequestSize = 30*1024^2)
 
 ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
   primary = "#794729",
-  secondary = "#342e1a",
+  secondary = "#201010", ##342e1a
   info = "#7c6f42"
 )
 
@@ -51,7 +52,8 @@ read_pcibex <- function(filepath,
   }
 }
 
-# tabPanel(title=tagList(icon("code"),"Script"),
+# Standard error of the mean
+sem <- function(x) { sd(x,na.rm=T) / sqrt(length(x)); }
 
 
 # UI ----------------------------------------------------------------------
@@ -59,12 +61,15 @@ read_pcibex <- function(filepath,
 # Define UI for the application
 ui <- fluidPage(
   theme = ibextheme,
+  tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "ibex.css")
+  ),
   sidebarLayout(
 
 ## Sidebar -----------------------------------------------------------------
     
     sidebarPanel(
-      width = 2,
+      width = 3,
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
@@ -91,11 +96,11 @@ ui <- fluidPage(
 
 ### Search phrase input for filtering rows ----------------------------------
 
-      p(strong("Include only rows with this exact phrase:")),
       textInput(inputId = "search_phrase",
-                label = "",
+                label = tagList(p(strong("Include only rows with this exact phrase:"))),
                 value = ""),
-      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'"),
+      helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'."),
+
     ),
 
 ## Main panel --------------------------------------------------------------
@@ -103,8 +108,7 @@ ui <- fluidPage(
     mainPanel(
 
 ### Table preview -----------------------------------------------------------
-# tabPanel(title=tagList(,"Stimuli file"),
-         
+
       tabsetPanel(
         tabPanel(title=tagList(icon("table"),"Table Preview"),
                  DT::dataTableOutput("preview")
@@ -116,62 +120,76 @@ ui <- fluidPage(
                  h3("Numerical data overview"),
                  DT::dataTableOutput("dataSummary"),
                  hr(),
-                 h3("List overview"),
+
+                 h3("Custom variable overview"),
                  fluidRow(
-                   column(width=12,
-                          textInput(
-                   inputId = "list_var_name",
-                   label   = "Add your list/group variable name here:",
-                   value   = ""
-                 ))),
-                 fluidRow(
-                   column(width = 6,
-                          plotOutput("listPlot")
+                   column(width = 3,
+                   textInput(
+                   inputId = "custom_var_name",
+                   label   = "Type your variable name here:",
+                   value   = "",
+                   width   = "100%"),
+                   helpText("For example 'List' or 'Condition'.")
                    ),
-                   column(width = 6,
-                          plotOutput("listDurationPlot")
-                   )
-                 ),
-                 hr(),
-                 h3("Condition overview"),
-                 fluidRow(
-                   column(width=12,
+                   column(width = 3,
                           textInput(
-                            inputId = "cond_var_name",
-                            label   = "Add your condition variable name here:",
-                            value   = ""
-                          ))),
+                            inputId = "exclude_var_list",
+                            label   = "Exclude values (comma-separated):",
+                            value   = "",
+                            width   = "100%"),
+                          helpText("For example 'Start' or 'undefined' or 'NULL'.")
+                   ),
+                   column(width = 3,
+                          uiOutput("duration_zoom_ui")
+                   ),
+                   column(width = 3,
+                   checkboxInput(
+                     inputId = "remove_na",
+                     label   = "Remove missing values",
+                     value   = FALSE
+                   ))
+                   ),
                  fluidRow(
                    column(width = 6,
-                          plotOutput("conditionPlot")
-                   ),
+                   plotOutput("varPlot")), 
                    column(width = 6,
-                          plotOutput("conditionDurationPlot")
+                   plotOutput("varDurationPlot"))
                    )
-                 )
         ),
 
 ### Participant overview ----------------------------------------------------
 
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
-                   column(width = 7,
-                          # plotOutput("participantPlot")
-                          uiOutput("participantPlotUI")
+                   column(width = 4,
+                   uiOutput("participant_count")
                    ),
-                   column(width = 5,
-                          DT::dataTableOutput("participantSummary")
+                   column(width = 4,
+                   uiOutput("average_trial")
+                   ),
+                   column(width = 4,
+                   uiOutput("median_duration")
+                   )
+                   ), 
+                 fluidRow(
+                   h3("Data preview"),
+                   column(width = 6,
+                          plotOutput("participantPlot", 
+                                     height = "500px")
+                          ),
+                   column(width = 6,
+                          plotOutput("participantDurationHistogramPlot",
+                                     height = "500px")
                    )
                  ),
                  fluidRow(
-                   column(width = 7,
-                          # uiOutput("participantDurationPlotUI")
-                          # plotOutput("participantDurationPlot")
-                          plotOutput("participantDurationHistogramPlot")
-                   ),
-                   column(width = 5,
-                          DT::dataTableOutput("participantDuration")
-                   )
+                   column(h3("Data collection timeline"),
+                          width = 12, timevisOutput("participantTimeline"))
+                 ),
+                 fluidRow(
+                   column(h3("Participant summary"),
+                          width = 12, DT::dataTableOutput("participantSummary"))
+                   
                  )
         ),
 
@@ -181,31 +199,41 @@ ui <- fluidPage(
                  HTML(markdown::markdownToHTML(text = "
 ### How to use this app
 
+**Workflow**: Upload → Process → Filter → View → Download
+
 - Upload a raw PCIbex CSV results file.
 - Click the **Submit** button to process the file.
 - (Optional) Select the columns you want to include.
 - (Optional) Enter a search phrase to filter rows.
 - View the processed data in the **Table Preview** tab. 
+- (Optional) Preview the data in the **Data summary** and **Participant overview** tabs.
 - Download the filtered dataset by clicking **Download formatted CSV**.
 
-### Plots
+### Data Summary
 
-**List / Group plots**
+This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
+This information can be useful for checking whether there is an equal amount of lists, conditions, and items in the recorded data.
 
-- *List occurrences* bar plot shows how many times each list or group appears in the data. Should probably be the same number for each list.
-- *Average duration* boxplot shows the duration in minutes of each trial for each list/group. Helps identify lists which take longer or shorter on average.
+- **Occurrences** bar plot shows how many times each group appears in the data. Helps identify unbalanced data.
+- **Average duration** boxplot shows the duration in minutes of each trial for each group. Helps identify cases which take longer or shorter on average.
+- Enter the variable name to plot.
+- (Optional) Input comma-separated values in the second text field to exclude values from the plots. This can also be a space, NULL, Start, End, or any other value.
+- (Optional) Use the slider to zoom in and out on duration ranges in the boxplot. The slider appears only after data upload.
+- Keep or remove missing values (NA) in the checkbox.
 - If the app does not detect your list variable, you can specify it in the text field.
 
-**Condition plots**
+You can download the plots by right-clicking on them and selecting 'Save image as...'.
 
-- *Condition occurrences* bar plot showing how many trials are in each condition. Should probably be the same number for each condition.
-- *Average duration* boxplot shows the trial durations for each condition. Helps identify experimental conditions which tend to be longer or shorter.
-- If the app does not detect your condition variable, you can specify it in the text field.
+### Participant overview
 
-**Participant plots**
+This tab shows two plots and a summary table of counts and durations.
+This information is useful for determining participants that are outside of the normal range (took the experiment several times, and took too long or too short to complete the experiment).
 
-- *Participant counts* bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
-- *Participant durations* histogram shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. Dashed vertical line: mean duration across all participants.
+- **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
+- **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
+
+You can download the plots by right-clicking on them and selecting 'Save image as...'.
+
 
 ### Troubleshooting
 
@@ -213,13 +241,30 @@ Follow these steps if you're having trouble uploading and processing your data.
 
 - Ensure that your file is in CSV format.
 - Check that the file size does not exceed 30MB.
-- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time.', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
+- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
+- It's always a good idea to double-check the spelling.
+- The plots might take a few seconds to load. 
+- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
 - The explorer works only with the unmodified PCIbex results file.
 - Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
 
-Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+
+### Version
+
+
+- **1.02**: Formatted plots; changed condition and list plots to use custom input with data selection.  
+- **1.01**: Added plots for conditions, lists, and participants.  
+- **1.00**: First version.
+
+### Links
+
+- [GitHub page](https://github.com/a-nap/Ibexplorer)
+- [Project page](https://pryslopska.com/projects/ibexplorer/)
+
                  ", fragment.only = TRUE))
+                 
         )
       )
     )
@@ -232,7 +277,6 @@ Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
 # Define server logic
 server <- function(input, output, session) {
   
-
 ## Data input processing ---------------------------------------------------
 
   # Process the file when the "Submit" button is clicked
@@ -290,7 +334,11 @@ server <- function(input, output, session) {
     if (ncol(numeric_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- psych::describe(numeric_data) |> 
-        mutate(across(everything()))
+        mutate(across(everything())) |>
+        select(-vars, -trimmed, -mad, -skew, -kurtosis) |>
+        mutate(mean = round(mean, 2),
+               sd = round(sd, 2),
+               se = round(se, 2))
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
@@ -298,51 +346,10 @@ server <- function(input, output, session) {
     }
   })
 
-## List info ---------------------------------------------------------------
+## Custom variable info ----------------------------------------------------
 
-  # output$listSummary <- DT::renderDataTable({
-  #   req(filtered_data(), list_var())  # also require list_var reactive
-  #   
-  #   data <- filtered_data() |>
-  #     rename_with(~ make.unique(tolower(.)))
-  #   
-  #   # Find list column using new logic
-  #   col_names <- tolower(names(data))
-  #   
-  #   if (!is.null(list_var()) && trimws(list_var()) != "") {
-  #     user_col <- tolower(list_var())
-  #     if (user_col %in% col_names) {
-  #       list_col <- names(data)[which(col_names == user_col)[1]]
-  #     } else {
-  #       list_col <- NULL
-  #     }
-  #   } else {
-  #     # original fallback logic
-  #     list_col <- if ("list" %in% col_names) {
-  #       names(data)[which(col_names == "list")[1]]
-  #     } else if ("group" %in% col_names) {
-  #       names(data)[which(col_names == "group")[1]]
-  #     } else {
-  #       NULL
-  #     }
-  #   }
-  #   
-  #   # Stop if no valid list column found
-  #   if (is.null(list_col)) {
-  #     return(DT::datatable(data.frame(Message = "No list column found."), rownames = FALSE))
-  #   }
-  #   
-  #   # Group by the found column and summarize
-  #   summary_data <- data |>
-  #     group_by(.data[[list_col]]) |>
-  #     summarize(count = n(), .groups = 'drop')
-  #   
-  #   DT::datatable(summary_data, rownames = TRUE)
-  # })
-  # 
-  
-  # List plot
-  output$listPlot <- renderPlot({
+  # Variable count plot
+  output$varPlot <- renderPlot({
     req(filtered_data())
     
     data <- filtered_data() |>
@@ -351,61 +358,106 @@ server <- function(input, output, session) {
     # Find list column
     col_names <- tolower(names(data))
     
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
+    
+    if (!is.null(custom_var()) && trimws(custom_var()) != "") {
+      user_col <- tolower(custom_var())
       if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
+        var_col <- names(data)[which(col_names == user_col)[1]]
       } else {
-        list_col <- NULL
+        var_col <- NULL
       }
     } else {
-      # fallback logic
-      list_col <- if ("list" %in% col_names) {
+      # fallback logic: if no variable is chosen then look for lists or conditions
+      var_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
         names(data)[which(col_names == "group")[1]]
+      } else if ("condition" %in% col_names) {
+        names(data)[which(col_names == "condition")[1]]
+      } else if ("treatment" %in% col_names) {
+        names(data)[which(col_names == "treatment")[1]]
+      } else if ("item" %in% col_names) {
+        names(data)[which(col_names == "item")[1]]
       } else {
         NULL
       }
     }
     
-    # Stop if no valid list column found
-    if (is.null(list_col)) {
-      stop("No valid list column found.")
+    # Stop if no valid variable found
+    if (is.null(var_col)) {
+      stop("No valid variable found.")
     }
+    
     
     # Group by the found column and summarize
     data <- data |>
-      group_by(.data[[list_col]]) |>
+      group_by(.data[[var_col]]) |>
       summarize(count = n(), .groups = 'drop')
     
+    # Optionally remove missing values
+    if (input$remove_na) {
+      data <- na.omit(data)
+    }
+    
+    # Optionally remove values
+    excl <- exclude_var_list() 
+    if (!is.null(excl)) {
+      data <- data %>%
+        filter(!(.data[[var_col]] %in% excl))
+    }
+    
+    # Calculate the mean and standard deviation
+    mean_value <- mean(data$count, na.rm = TRUE)
+    sem_value   <- sem(data$count)
+    ymin = mean_value - sem_value
+    ymax = mean_value + sem_value
+    
     # Set up for plotting
-    grouping_column <- list_col
+    grouping_column <- var_col
     data[[grouping_column]] <- as.factor(data[[grouping_column]])
+    
     
     # Generate the bar plot
     ggplot(data, 
            aes(x = .data[[grouping_column]], y = count)) +
-      geom_bar(stat = "identity", fill = "#342e1a") +
-      geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
+      annotate(
+        "rect",
+        xmin = -Inf, xmax = Inf,
+        ymin = ymin,
+        ymax = ymax,
+        fill = "#342e1a",
+        alpha = 0.15
+      ) +
+      geom_bar(stat = "identity", fill = "#794729") +
+      geom_text(aes(label = count), 
+                vjust = -0.3, 
+                size = 4, 
+                color = "#201010") +
+      
+      geom_hline(
+        yintercept = mean_value,
+        color = "#201010",
+        linewidth = 1,
+        linetype = "dashed"
+      ) +
       labs(
         x = tools::toTitleCase(grouping_column),
         y = "Row count",
-        title = "Occurrences of each list in the data"
+        title = paste0("Occurrences of each ",grouping_column," in the data")
       ) +
       theme_bw() +
       theme(
-        panel.background = element_rect(fill = "#ebe5e0"),
+        panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
-        legend.background = element_rect(fill = "#ebe5e0"),
-        legend.box.background = element_rect(fill = "#ebe5e0")
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
       )
   })
   
   
-  # List duration plot
-  output$listDurationPlot <- renderPlot({
+  # Duration plot
+  output$varDurationPlot <- renderPlot({
     req(filtered_data())
     
     data <- filtered_data() |>
@@ -414,27 +466,33 @@ server <- function(input, output, session) {
     # Find list column
     col_names <- names(data)
     
-    if (!is.null(list_var()) && trimws(list_var()) != "") {
-      user_col <- tolower(list_var())
+    if (!is.null(custom_var()) && trimws(custom_var()) != "") {
+      user_col <- tolower(custom_var())
       if (user_col %in% col_names) {
-        list_col <- names(data)[which(col_names == user_col)[1]]
+        var_col <- names(data)[which(col_names == user_col)[1]]
       } else {
-        list_col <- NULL
+        var_col <- NULL
       }
     } else {
       # fallback logic
-      list_col <- if ("list" %in% col_names) {
+      var_col <- if ("list" %in% col_names) {
         names(data)[which(col_names == "list")[1]]
       } else if ("group" %in% col_names) {
         names(data)[which(col_names == "group")[1]]
+      } else if ("condition" %in% col_names) {
+        names(data)[which(col_names == "condition")[1]]
+      } else if ("treatment" %in% col_names) {
+        names(data)[which(col_names == "treatment")[1]]
+      } else if ("item" %in% col_names) {
+        names(data)[which(col_names == "item")[1]]
       } else {
         NULL
       }
     }
     
     # Stop if no valid list column found
-    if (is.null(list_col)) {
-      stop("No valid list column found.")
+    if (is.null(var_col)) {
+      stop("No valid variable column found.")
     }
     
     # Calculate average duration per list
@@ -445,224 +503,91 @@ server <- function(input, output, session) {
         duration = round(duration / 60, 1)  # minutes
       ) |>
       mutate(
-        !!list_col := as.factor(.data[[list_col]])   
+        !!var_col := as.factor(.data[[var_col]])   
       )  
-
-    ggplot(duration_data, aes(y = duration, x = .data[[list_col]])) +
-      geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
+    
+    # Optionally remove missing values
+    if (input$remove_na) {
+      duration_data <- na.omit(duration_data)
+    }
+    
+    # Optionally remove values
+    excl <- exclude_var_list() 
+    if (!is.null(excl)) {
+      duration_data <- duration_data |>
+        filter(!(duration_data[[var_col]] %in% excl))
+    }
+    
+    # Duration range
+    zoom_range <- input$duration_zoom
+    
+    # Plot
+    ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
+      geom_boxplot(fill = "#ebe5e0", 
+                   outlier.color = "#201010", 
+                   outlier.size = 2) +
+      coord_cartesian(ylim = zoom_range) +
       labs(
-        title = "Average duration per list",
+        title = paste0("Average duration per ", var_col),
         y = "Time in minutes",
-        x = tools::toTitleCase(list_col)
+        x = tools::toTitleCase(var_col)
       ) +
       theme_bw() +
       theme(
-        # axis.text.x = element_text(angle = 90, hjust = 1),
-        panel.background = element_rect(fill = "#ebe5e0"),
+        panel.background = element_blank(),
         plot.background = element_rect(fill = "#ebe5e0", color = NA),
         panel.grid.major = element_blank(),
-        legend.background = element_rect(fill = "#ebe5e0"),
-        legend.box.background = element_rect(fill = "#ebe5e0")
+        legend.background = element_blank(),
+        legend.box.background = element_blank()
       )
   })
-
   
-# Optionally, input the list variable 
-
-list_var <- reactive({
-  val <- input$list_var_name
-  if (is.null(val) || trimws(val) == "") {
-    return(NULL)
-  } else {
-    return(val)
-  }
-})
-
-
-## Condition info ---------------------------------------------------------------
-
-
-output$conditionSummary <- DT::renderDataTable({
-  req(filtered_data())
   
-  data <- filtered_data() |>
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find condition column 
-  col_names <- tolower(names(data))
-  
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      list_col <- names(data)[which(col_names == user_col)[1]]
+  # Input the custom variable 
+  custom_var <- reactive({
+    val <- input$custom_var_name
+    if (is.null(val) || trimws(val) == "") {
+      return(NULL)
     } else {
-      list_col <- NULL
+      return(val)
     }
-  } else {
-    # fallback logic
-    list_col <- if ("list" %in% col_names) {
-      names(data)[which(col_names == "list")[1]]
-    } else if ("group" %in% col_names) {
-      names(data)[which(col_names == "group")[1]]
+  })  
+  
+  # Exclude these values
+  exclude_var_list <- reactive({
+    val <- input$exclude_var_list
+    if (is.null(val) || trimws(val) == "") {
+      return(NULL)
     } else {
-      NULL
+      strsplit(val, ",")[[1]] |>
+        trimws() 
     }
-  }
+  })
   
-  # Stop if no valid condition column found
-  if (is.null(list_col)) {
-    return(DT::datatable(data.frame(Message = "No condition column found."), rownames = FALSE))
-  }
+  # Calculate duration limits
   
-  # Group by the found column and summarize
-  summary_data <- data |>
-    group_by(.data[[list_col]]) |>
-    summarize(count = n(), .groups = 'drop')
-  
-  DT::datatable(summary_data, rownames = TRUE)
-})
-
-
-# Conditions plot
-output$conditionPlot <- renderPlot({
-  req(filtered_data()) 
-  
-  data <- filtered_data() %>%
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find condition column using new logic
-  col_names <- tolower(names(data))
-  
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      list_col <- names(data)[which(col_names == user_col)[1]]
-    } else {
-      list_col <- NULL
-    }
-  } else {
-    # original fallback logic
-    list_col <- if ("condition" %in% col_names) {
-      names(data)[which(col_names == "condition")[1]]
-    } else if ("treatment" %in% col_names) {
-      names(data)[which(col_names == "treatment")[1]]
-    } else {
-      NULL
-    }
-  }
-  
-  # Stop if no valid list column found
-  if (is.null(list_col)) {
-    stop("No valid condition column found.")
-  }
-  
-  # Group by the found column and summarize
-  data <- data %>%
-    group_by(.data[[list_col]]) %>%
-    summarize(count = n(), .groups = 'drop')
-  
-  # Set up for plotting
-  grouping_column <- list_col
-  data[[grouping_column]] <- as.factor(data[[grouping_column]])
-  
-  # Generate the bar plot
-  ggplot(data, 
-         aes(x = .data[[grouping_column]], y = count)) +
-    geom_bar(stat = "identity", fill = "#342e1a") +
-    geom_text(aes(label = count), vjust = -0.3, size = 4, color = "#342e1a") +
-    labs(
-      x = tools::toTitleCase(grouping_column),
-      y = "Row count",
-      title = "Occurrences of each list in the data"
-    ) +
-    theme_bw() +
-    theme(
-      panel.background = element_rect(fill = "#ebe5e0"),
-      plot.background = element_rect(fill = "#ebe5e0", color = NA),
-      panel.grid.major = element_blank(),
-      legend.background = element_rect(fill = "#ebe5e0"),
-      legend.box.background = element_rect(fill = "#ebe5e0")
+  output$duration_zoom_ui <- renderUI({
+    req(filtered_data()) 
+    
+    data <- filtered_data() |>
+      mutate(duration = round((Results.reception.time - EventTime / 1000)/60, 1)) %>%
+      filter(!is.na(duration)) 
+    
+    min_dur <- floor(min(data$duration, na.rm = TRUE))
+    max_dur <- ceiling(max(data$duration, na.rm = TRUE))
+    
+    sliderInput(
+      inputId = "duration_zoom",
+      label = "Duration range (minutes):",
+      min = min_dur,
+      max = max_dur,
+      value = c(min_dur, max_dur),
+      step = 1,
+      ticks = FALSE  
     )
-})
-
-
-# Condition duration plot
-output$conditionDurationPlot <- renderPlot({
-  req(filtered_data())
-  
-  data <- filtered_data() |>
-    rename_with(~ make.unique(tolower(.)))
-  
-  # Find list column
-  col_names <- names(data)
+  })
   
   
-  if (!is.null(cond_var()) && trimws(cond_var()) != "") {
-    # try to match user-provided name case-insensitively
-    user_col <- tolower(cond_var())
-    if (user_col %in% col_names) {
-      cond_col <- names(data)[which(col_names == user_col)[1]]
-    } else {
-      cond_col <- NULL  
-    }
-  } else {
-    # fallback to logic
-    cond_col <- if ("condition" %in% col_names) {
-      names(data)[which(col_names == "condition")[1]]
-    } else if ("treatment" %in% col_names) {
-      names(data)[which(col_names == "treatment")[1]]
-    } else {
-      NULL
-    }
-  }
-  
-  # Stop if no valid condition column found
-  if (is.null(cond_var)) {
-    stop("No valid condition column found.")
-  }
-  
-  # Calculate average duration per condition
-  duration_data <- data |>
-    mutate(
-      EventTime = eventtime / 1000,
-      duration = results.reception.time - EventTime,
-      duration = round(duration / 60, 1)  # minutes
-    ) |>
-    mutate(
-      !!cond_col := as.factor(.data[[cond_col]])   
-    )  
-
-  ggplot(duration_data, aes(y = duration, x = .data[[cond_col]])) +
-    geom_boxplot(fill = "#ebe5e0", outlier.color = "#342e1a", outlier.size = 2) +
-    # geom_col(fill = "#7c6f42") + 794729
-    labs(
-      title = "Average duration per condition",
-      y = "Time in minutes",
-      x = tools::toTitleCase(cond_col)
-    ) +
-    theme_bw() +
-    theme(
-      # axis.text.x = element_text(angle = 90, hjust = 1),
-      panel.background = element_rect(fill = "#ebe5e0"),
-      plot.background = element_rect(fill = "#ebe5e0", color = NA),
-      panel.grid.major = element_blank(),
-      legend.background = element_rect(fill = "#ebe5e0"),
-      legend.box.background = element_rect(fill = "#ebe5e0")
-    )
-})
-
-
-# Optionally, input the list variable nae 
-
-cond_var <- reactive({
-  val <- input$cond_var_name
-  if (is.null(val) || trimws(val) == "") {
-    return(NULL)
-  } else {
-    return(val)
-  }
-})
-
   
 # Participant info --------------------------------------------------------
 
@@ -672,26 +597,33 @@ cond_var <- reactive({
   output$participantSummary <- DT::renderDataTable({
     req(filtered_data())
     data <- filtered_data()
-    participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
+    
+    participant_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,
+        duration = Results.reception.time - EventTime,
+        duration = round(duration/60, 1),
+        EventTimePOSIX = as.POSIXct(EventTime, origin = "1970-01-01", tz = "UTC")
+      ) |>
+      group_by(MD5.hash.of.participant.s.IP.address) |>
+      summarise(count = n(),
+                duration = max(duration),
+                `data collection start` = min(EventTimePOSIX)
+      )
+
+
     if (ncol(participant_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- participant_data
       DT::datatable(summary_stats, rownames = TRUE)
     } else {
       # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
+      DT::datatable(data.frame(Message = "No participant data found."), rownames = FALSE)
     }
   })
   
 
 # Participant count
-output$participantPlotUI <- renderUI({
-  n <- nrow(filtered_data())  # number of participants
-  max_height <- 700          # cap the height at 1000px
-  height <- min(50 + n * 5, max_height)  # 5px per participant + base
-  
-  plotOutput("participantPlot", height = paste0(height, "px"))
-})
 
   output$participantPlot <- renderPlot({
     req(filtered_data())
@@ -705,7 +637,8 @@ output$participantPlotUI <- renderUI({
         ungroup()
       
       ggplot(participant_data, aes(y = MD5.hash.of.participant.s.IP.address, x = count)) +
-        geom_bar(stat = "identity", fill="#342e1a") +
+        geom_bar(stat = "identity", fill="#201010") + 
+        coord_flip() +
         labs(
           title = "Occurrences of each participant in the data",
           y = "Participant IP",
@@ -714,43 +647,17 @@ output$participantPlotUI <- renderUI({
         theme_bw() +
         theme(
           axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_rect(fill="#ebe5e0"),
+          panel.background = element_blank(),
           plot.background = element_rect(fill="#ebe5e0", color=NA),
           panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
+          legend.background = element_blank(),
+          legend.box.background = element_blank()
         )
     } else {
       # Display a message if the participant ID column is missing
       ggplot() +
         annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
         theme_void()
-    }
-  })
-  
-  # Duration table
-  output$participantDuration <- DT::renderDataTable({
-    req(filtered_data())
-    data <- filtered_data()
-    
-    duration_data <- data |>
-      mutate(
-        EventTime = EventTime/1000,
-        duration = Results.reception.time - EventTime,
-        duration = round(duration/60, 1)
-      ) |>
-      group_by(MD5.hash.of.participant.s.IP.address) |>
-      summarise(duration = max(duration)) |>
-      ungroup()
-    
-    # participant_data <- data |> group_by(MD5.hash.of.participant.s.IP.address) |> summarize(count = n())
-    if (ncol(duration_data) > 0) {
-      # Using the psych package's describe function for summary statistics
-      summary_stats <- duration_data
-      DT::datatable(summary_stats, rownames = TRUE)
-    } else {
-      # If no numeric columns, display a message
-      DT::datatable(data.frame(Message = "No duration data found."), rownames = FALSE)
     }
   })
   
@@ -767,7 +674,7 @@ output$participantPlotUI <- renderUI({
         mutate(
           EventTime = EventTime / 1000,
           duration = Results.reception.time - EventTime,
-          duration = round(duration / 60, 1)  # minutes
+          duration = round(duration / 60, 1)
         ) |>
         group_by(MD5.hash.of.participant.s.IP.address) |>
         summarise(duration = max(duration, na.rm = TRUE)) |>
@@ -775,32 +682,54 @@ output$participantPlotUI <- renderUI({
       
       # Compute mean duration
       mean_duration <- mean(duration_data$duration, na.rm = TRUE)
-      
+      outlier_max <- mean_duration + 2*sd(duration_data$duration, na.rm = TRUE)
+      outlier_min <- mean_duration - 2*sd(duration_data$duration, na.rm = TRUE)
+      if (outlier_min < 0) {
+        outlier_min<-0
+      } 
+                  
       # Histogram
       ggplot(duration_data, aes(x = duration)) +
         geom_histogram(
-          binwidth = 5,  # 1 minute per bin, adjust as needed
-          fill = "#342e1a",
+          aes(y = after_stat(density)),
+          binwidth = 4,  # 1 minute per bin, adjust as needed
+          fill = "#794729",
           color = "#ebe5e0"
         ) +
+        geom_density(color = scales::alpha("#201010", 0.5),
+                     linewidth=1) +
         geom_vline(
           xintercept = mean_duration,
-          color = "#7c6f42",
+          color = "#201010",
           linewidth = 1,
-          linetype = "dashed"
+          linetype = "solid"
+        ) +
+        geom_vline(
+          xintercept = outlier_max,
+          color = "#201010",
+          linewidth = 1,
+          linetype = "dashed",
+          alpha=0.3
+        ) +
+        geom_vline(
+          xintercept = outlier_min,
+          color = "#201010",
+          linewidth = 1,
+          linetype = "dashed",
+          alpha=0.3
         ) +
         labs(
           title = "Distribution of participant durations",
           x = "Time in minutes",
-          y = "Number of participants"
+          y = "Density"
         ) +
         theme_bw() +
         theme(
-          panel.background = element_rect(fill = "#ebe5e0"),
+          panel.background = element_blank(),
           plot.background = element_rect(fill = "#ebe5e0", color = NA),
           panel.grid.major = element_blank(),
-          legend.background = element_rect(fill = "#ebe5e0"),
-          legend.box.background = element_rect(fill = "#ebe5e0")
+          legend.background = element_blank(),
+          legend.box.background = element_blank()
         )
       
     } else {
@@ -815,68 +744,228 @@ output$participantPlotUI <- renderUI({
     }
   })
   
-  
-  # Experiment duration per participant
 
-  output$participantDurationPlotUI <- renderUI({
-    n <- nrow(filtered_data())  # number of participants
-    max_height <- 1000          # cap the height at 1000px
-    height <- min(50 + n * 5, max_height)  # 5px per participant + base
+### Timeline ----------------------------------------------------------------
+
+  
+  # Render timeline
+  output$participantTimeline <- renderTimevis({
     
-    plotOutput("participantDurationPlot", height = paste0(height, "px"))
+    req(filtered_data())
+    data <- filtered_data()
+    
+    participant_data <- data |>
+      mutate(
+        EventTime = EventTime/1000,  # Convert to seconds
+        date_time = as.POSIXct(EventTime, origin = "1970-01-01")
+      ) |>
+      group_by(`MD5.hash.of.participant.s.IP.address`) |>
+      summarise(
+        first_event = min(date_time, na.rm = TRUE),
+        trials = n(),
+        .groups = "drop"
+      ) |>
+      mutate(
+        id = row_number(),
+        content = MD5.hash.of.participant.s.IP.address
+      ) |>
+      select(id, content, start = first_event)
+    
+    timevis(
+      data = participant_data,
+      options = list(
+        height = "300px",
+          editable = FALSE,
+          showZoom = TRUE
+      )
+    )
   })
   
-  output$participantDurationPlot <- renderPlot({
+  
+  ### Cards ---------------------------------------------------------------
+  
+  ## Participant count 
+  output$participant_count <- renderUI({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    part_nr <- if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      data |>
+        dplyr::distinct(MD5.hash.of.participant.s.IP.address) |>
+        nrow()
+    } else {
+      NA
+    }
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #201010;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "users",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Participant count",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(part_nr)) {
+            tags$em("Participant ID column missing.")
+          } else {
+            h2(
+              part_nr,
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+    
+  })
+  
+  
+  output$median_duration <- renderUI({
+    req(filtered_data())
+    data <- filtered_data()
+    
+    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      
+      # Calculate max duration per participant
+      duration_data <- data |>
+        mutate(
+          EventTime = EventTime / 1000,
+          duration = Results.reception.time - EventTime,
+          duration = round(duration / 60, 1)
+        ) |>
+        group_by(MD5.hash.of.participant.s.IP.address) |>
+        summarise(duration = max(duration, na.rm = TRUE)) |>
+        ungroup()
+      
+      # Compute mean duration
+      median_duration <- round(median(duration_data$duration, na.rm = TRUE),1)
+      sd_duration <- round(sd(duration_data$duration, na.rm = TRUE),1)
+      
+    } else {
+      NA
+    }
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #794729;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "hourglass-end",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Median duration (SD)",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(median_duration)) {
+            tags$em("Participant ID or duration column missing.")
+          } else {
+            h2(
+              paste0(median_duration, " minutes (", sd_duration, ")"),
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+  })
+  
+  
+  output$average_trial <- renderUI({
     req(filtered_data())
     data <- filtered_data()
     
     
     if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      duration_data <- data |>
-        mutate(
-        EventTime = EventTime/1000,
-               duration = Results.reception.time - EventTime,
-               duration = round(duration/60, 1)
-          ) |>
+      
+      avg_trials <- data |>
         group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(duration = max(duration)) |>
-        ungroup()
-      
-      mean_data <- duration_data |>
-        summarise(mean_duration = mean(duration, na.rm = TRUE))
-      
-      ggplot(duration_data) +
-        geom_vline(
-          data = mean_data,
-          aes(xintercept = mean_duration),
-          color = "#342e1a",
-          linewidth = 1,
-          inherit.aes = FALSE
-        ) +
-        geom_bar(aes(y = MD5.hash.of.participant.s.IP.address, x = duration),
-                 stat = "identity", fill="#7c6f42") +
-        labs(
-          title = "Duration of the experiment",
-          y = "Participant IP",
-          x = "Time in minutes"
-        ) +
-        theme_bw() +
-        theme(
-          # axis.text.x = element_text(angle = 90, hjust = 1),
-          panel.background = element_rect(fill="#ebe5e0"),
-          plot.background = element_rect(fill="#ebe5e0", color=NA),
-          panel.grid.major = element_blank(),
-          legend.background = element_rect(fill="#ebe5e0"),
-          legend.box.background = element_rect(fill="#ebe5e0")
-        )
+        summarise(trials = n(), .groups = "drop") |>
+        summarise(mean_trials = round(median(trials, na.rm = TRUE), 1)) |>
+        pull(mean_trials)
     } else {
-      # Display a message if the participant ID column is missing
-      ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "Participant ID column not found in the data.", size = 5, hjust = 0.5) +
-        theme_void()
+      NA
     }
-    })
-  
+    
+    div(
+      class = "well",
+      style = "
+    background-color: #7c6f42;
+    padding: 12px 16px;
+    margin: 10px;
+    color: #ebe5e0;
+  ",
+      
+      # Outer row
+      tags$div(
+        style = "display: flex; align-items: center; gap: 16px;",
+        
+        # Left column: icon
+        icon(
+          "list-check",
+          style = "font-size: 4em; color: #ebe5e0;"
+        ),
+        
+        # Right column: text (stacked)
+        tags$div(
+          style = "display: flex; flex-direction: column;",
+          
+          h5(
+            "Avg Trials / Participant",
+            style = "margin: 0;"
+          ),
+          
+          if (is.na(avg_trials)) {
+            tags$em("Participant ID column missing.")
+          } else {
+            h2(
+              avg_trials,
+              style = "margin: 4px 0 0 0;"
+            )
+          }
+        )
+      )
+    )
+    
+  })
 
 ## Data download -----------------------------------------------------------
   
@@ -900,4 +989,3 @@ shinyApp(ui = ui, server = server)
 
 # TODO --------------------------------------------------------------------
 
-# FIXME the participant plot is too large for small samples. Make smaller
