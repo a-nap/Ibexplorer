@@ -112,8 +112,11 @@ ui <- fluidPage(
       tabsetPanel(
         tabPanel(title=tagList(icon("table"),"Table Preview"),
                  fluidRow(
-                   
+                   card(
+                     height="1200px",
+                   h3("Preprocessed data preview"),
                    DT::dataTableOutput("preview")
+                   )
                  )),
         
         ### Data summary ------------------------------------------------------------
@@ -132,30 +135,25 @@ ui <- fluidPage(
                               label   = "Type your variable name here:",
                               value   = "",
                               width   = "100%"),
-                            helpText("For example 'List' or 'Condition'.")
-                     ),
-                     column(width = 3,
+                            helpText("For example 'List' or 'Condition'."),
+                            hr(),
                             textInput(
                               inputId = "exclude_var_list",
                               label   = "Exclude values (comma-separated):",
                               value   = "",
                               width   = "100%"),
-                            helpText("For example 'Start' or 'undefined' or 'NULL'.")
+                            helpText("For example 'Start' or 'undefined' or 'NULL'."),
+                     hr(),
+                     checkboxInput(
+                       inputId = "remove_na",
+                       label   = "Remove missing values",
+                       value   = FALSE
                      ),
-                     column(width = 3,
-                            uiOutput("duration_zoom_ui")
-                     ),
-                     column(width = 3,
-                            checkboxInput(
-                              inputId = "remove_na",
-                              label   = "Remove missing values",
-                              value   = FALSE
-                            ))
+                     hr(),
+                     uiOutput("duration_zoom_ui")
                    ),
-                   fluidRow(
-                     column(width = 6,
-                            plotOutput("varPlot")), 
-                     column(width = 6,
+                     column(width = 8,
+                            plotOutput("varPlot"), 
                             plotOutput("varDurationPlot"))
                    ))
         ),
