@@ -113,7 +113,7 @@ ui <- fluidPage(
         tabPanel(title=tagList(icon("table"),"Table Preview"),
                  fluidRow(
                    card(
-                     height="1200px",
+                     height="1000px",
                    h3("Preprocessed data preview"),
                    DT::dataTableOutput("preview")
                    )
