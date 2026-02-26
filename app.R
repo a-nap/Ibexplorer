@@ -271,7 +271,7 @@ Follow these steps if you're having trouble uploading and processing your data.
 - Ensure that your file is the unmodified PCIbex results file in CSV format.
 - Check that the file size does not exceed 30MB.
 - Check the file encoding. UTF-8 should usually work.
-- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
+- If no data appears, you may have unchecked required columns (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
 - It's always a good idea to double-check the spelling.
 - The plots might take a few seconds to load. If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar.
@@ -307,10 +307,10 @@ This information can be useful for checking whether there is an equal amount of 
 - **Occurrences** bar plot shows how many times each group appears in the data. Helps identify unbalanced data.
 - **Average duration** boxplot shows the duration in minutes of each trial for each group. Helps identify cases which take longer or shorter on average.
 - Enter the variable name to plot.
+- Keep or remove missing values (NA) in the checkbox.
 - (Optional) Input comma-separated values in the second text field to exclude values from the plots. This can also be a space, NULL, Start, End, or any other value.
 - (Optional) Use the slider to zoom in and out on duration ranges in the boxplot. The slider appears only after data upload.
-- Keep or remove missing values (NA) in the checkbox.
-- If the app does not detect your list variable, you can specify it in the text field.
+- (Optional) Aggregate the duration plot data. This is useful for comparing durations between items or conditions. For comparing list durations, the data should not be aggregated.
 
 You can download the plots by right-clicking on them and selecting 'Save image as...'.
 ", fragment.only = TRUE
@@ -622,13 +622,20 @@ server <- function(input, output, session) {
         pivot_wider(
           names_from = value,
           values_from = eventtime
-        ) |>
+        )
+      
+      if (is.list(plot_data$Start) || is.list(plot_data$End)) {
+        plot_data <- NULL
+      } else {
+      plot_data <- 
+        plot_data |>
         mutate(Start = as.numeric(Start),
                End = as.numeric(End)) |>
         filter(!is.na(Start), !is.na(End)) |>
         mutate(
           duration = (End - Start)/60
-        ) } else {
+        ) }
+      } else {
           plot_data <- duration_data
         }
 
@@ -637,9 +644,9 @@ server <- function(input, output, session) {
     zoom_range <- input$duration_zoom    
     
     # Plot
-    if (is.list(plot_data$Start) || is.list(plot_data$End)) {
+    if (is.null(plot_data)) {
       ggplot() +
-        annotate("text", x = 0.5, y = 0.5, label = "FIXME", size = 5, hjust = 0.5) +
+        annotate("text", x = 0.5, y = 0.5, label = "No valid variable found. Check for duplicate data.", size = 5, hjust = 0.5) +
         theme_void()
     } else {
     ggplot(plot_data, aes(y = duration, x = .data[[var_col]])) +
