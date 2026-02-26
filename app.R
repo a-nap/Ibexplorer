@@ -234,15 +234,15 @@ ui <- fluidPage(
         ### Usage guide -------------------------------------------------------------
         
         tabPanel(title=tagList(icon("circle-info"),"Usage Guide"),
-                 card(
-                   fluidRow(
-                     h3("How to use this app"),
-                     column(width=1,
-                     img(src='flowchart_vert.svg', style="min-width: 30%; width: 90%")
-                     ),
-                    column(width=5,
-                           h4("Workflow"),
+                 fluidRow(
+                     column(width=6,
+                     card(
+                       fluidRow(h3("How to use this app"),
+                     column(width=10,
+                            
                  HTML(markdown::markdownToHTML(text = "
+The recommended workflow is as follows:
+                 
 ###### 1. **Upload:** Select a raw PCIbex CSV results file.
 ###### 2. **Process:** Click the 'Submit' button to process the file.
 ###### 3. **Preview:** View the processed data in the 'Table preview', 'Data summary', and 'Participant overview' tabs. 
@@ -251,39 +251,53 @@ ui <- fluidPage(
 - (Optional) In the sidebar, select the columns you want to include.
 - (Optional) In the sidebar, enter a search phrase to filter rows.
 
-###### 5. **Download:** Download the filtered dataset by clicking 'Download formatted CSV'.", 
+###### 5. **Download:** Download the filtered dataset by clicking 'Download formatted CSV'.
+                                               
+Any filter that was applied to the data will be applied to the downloaded file.", 
                                                fragment.only = TRUE)
-                 )), # end of column
-                 column(width=6,
-                        h4("Troubleshooting"),
-                        HTML(markdown::markdownToHTML(text = "
+                 )), # end column
+                 column(width=2,
+                        img(src='flowchart.svg', style="min-width: 30%; width: 90%")
+                 ))), # end card
+                 ),
+column(width=6,
+       card(h3("Troubleshooting"),
+            HTML(markdown::markdownToHTML(text = "
 Follow these steps if you're having trouble uploading and processing your data.
 
-- Ensure that your file is in CSV format.
+- Ensure that your file is the unmodified PCIbex results file in CSV format.
 - Check that the file size does not exceed 30MB.
-- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+- Check the file encoding. UTF-8 should usually work.
 - If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
 - If no data appears, verify that the row filter phrase is correct.
 - It's always a good idea to double-check the spelling.
-- The plots might take a few seconds to load. 
-- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
-- The explorer works only with the unmodified PCIbex results file.
+- The plots might take a few seconds to load. If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar.
 - Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
-                 ", fragment.only = TRUE)))
-                 )  # end of row
-                 ),
-                 card(
-                   h3("Data preview"),
-                 HTML(markdown::markdownToHTML(text = "
-#### Table preview
-
+                             ", fragment.only = TRUE)
+                 ) # end HTML
+            ))     # end column
+),
+fluidRow(
+  column(width=12,
+         card(h3("Data preview"),
+              accordion(
+                accordion_panel(
+                  value="table",
+                  title = tagList(
+                  icon("table"),
+                  " Table preview"
+                ),
+                                HTML(markdown::markdownToHTML(text = "
 This tab shows the preview of the preprocessed file. 
 This is the data that will be saved after clicking on 'Download formatted CSV'.
 All exlusion and inclusion criteria are applied. 
-The data summaries in the other tabs will not be saved.
-
-#### Data Summary
-
+The data summaries in the other tabs will not be saved.", fragment.only = TRUE
+                                ))
+                                ),
+                accordion_panel(
+                  value="data summary",
+                  title=tagList(icon("chart-simple"),"Data summary"),
+                                HTML(markdown::markdownToHTML(text = "
 This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
 This information can be useful for checking whether there is an equal amount of lists, conditions, and items in the recorded data.
 
@@ -296,18 +310,28 @@ This information can be useful for checking whether there is an equal amount of 
 - If the app does not detect your list variable, you can specify it in the text field.
 
 You can download the plots by right-clicking on them and selecting 'Save image as...'.
-
-#### Participant overview
-
+", fragment.only = TRUE
+                                ))
+                                ),
+                accordion_panel(
+                  value="participants",
+                  title=tagList(icon("users"),"Participant overview"),
+                                HTML(markdown::markdownToHTML(text = "
 This tab shows two plots and a summary table of counts and durations.
 This information is useful for determining participants that are outside of the normal range (took the experiment several times, and took too long or too short to complete the experiment).
 
 - **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
 - **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
 
-You can download the plots by right-clicking on them and selecting 'Save image as...'.", fragment.only = TRUE)
-                 )
-                 ),
+You can download the plots by right-clicking on them and selecting 'Save image as...'.", fragment.only = TRUE
+                                ))
+                                )
+                ), # end accordion
+
+              
+              ))
+  ), # end row
+
                  card(
                  HTML(markdown::markdownToHTML(text = "
 ### Version
