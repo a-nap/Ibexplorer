@@ -686,6 +686,11 @@ server <- function(input, output, session) {
     zoom_range <- input$duration_zoom    
     
     # Plot
+    if (is.list(plot_data$Start) || is.list(plot_data$End)) {
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "FIXME", size = 5, hjust = 0.5) +
+        theme_void()
+    } else {
     ggplot(plot_data, aes(y = duration, x = .data[[var_col]])) +
       geom_boxplot(fill = "#ebe5e0", 
                    outlier.color = "#201010", 
@@ -704,6 +709,7 @@ server <- function(input, output, session) {
         legend.background = element_blank(),
         legend.box.background = element_blank()
       )
+    }
      
   })
   
