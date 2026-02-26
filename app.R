@@ -7,13 +7,14 @@ library(psych)
 library(DT)
 library(bslib)
 
+
 options(shiny.maxRequestSize = 30*1024^2)
 
 ibextheme <- bs_theme(
   fg = "#201010", 
   bg = "#ebe5e0", 
   primary = "#794729",
-  secondary = "#201010", ##342e1a
+  secondary = "#201010", 
   info = "#7c6f42"
 )
 
@@ -65,17 +66,17 @@ ui <- fluidPage(
     tags$link(rel = "stylesheet", type = "text/css", href = "ibex.css")
   ),
   sidebarLayout(
-
-## Sidebar -----------------------------------------------------------------
+    
+    ## Sidebar -----------------------------------------------------------------
     
     sidebarPanel(
       width = 3,
       img(src='ibex.svg'),
       h1("Ibex Explorer"),
       p("File converter for PCIbex results files."),
-
-### File selector -----------------------------------------------------------
-
+      
+      ### File selector -----------------------------------------------------------
+      
       fileInput(inputId = "raw.file",
                 accept = c("text", "text/plain", ".txt", ".TXT", ".csv", ".CSV"),
                 label = "Upload a CSV file (max. 30 MB)",
@@ -87,170 +88,255 @@ ui <- fluidPage(
                      class = "btn-secondary btn-block",
                      icon = icon("download")),
       hr(),
-
-### Column selector ---------------------------------------------------------
-
+      
+      ### Column selector ---------------------------------------------------------
+      
       p(strong("Include only these columns:")),
       uiOutput("column_selector"),
       hr(),
-
-### Search phrase input for filtering rows ----------------------------------
-
+      
+      ### Search phrase input for filtering rows ----------------------------------
+      
       textInput(inputId = "search_phrase",
                 label = tagList(p(strong("Include only rows with this exact phrase:"))),
                 value = ""),
       helpText("For example 'metadata' or 'experiment' or 'SelfPacedReadingParadigm'."),
-
+      
     ),
-
-## Main panel --------------------------------------------------------------
-
+    
+    ## Main panel --------------------------------------------------------------
+    
     mainPanel(
-
-### Table preview -----------------------------------------------------------
-
+      
+      ### Table preview -----------------------------------------------------------
+      
       tabsetPanel(
-        tabPanel(title=tagList(icon("table"),"Table Preview"),
-                 DT::dataTableOutput("preview")
-        ),
-
-### Data summary ------------------------------------------------------------
-
-        tabPanel(title=tagList(icon("chart-simple"),"Data summary"),
-                 h3("Numerical data overview"),
-                 DT::dataTableOutput("dataSummary"),
-                 hr(),
-
-                 h3("Custom variable overview"),
+        tabPanel(title=tagList(icon("table"),"Table preview"),
                  fluidRow(
-                   column(width = 3,
-                   textInput(
-                   inputId = "custom_var_name",
-                   label   = "Type your variable name here:",
-                   value   = "",
-                   width   = "100%"),
-                   helpText("For example 'List' or 'Condition'.")
-                   ),
-                   column(width = 3,
-                          textInput(
-                            inputId = "exclude_var_list",
-                            label   = "Exclude values (comma-separated):",
-                            value   = "",
-                            width   = "100%"),
-                          helpText("For example 'Start' or 'undefined' or 'NULL'.")
-                   ),
-                   column(width = 3,
-                          uiOutput("duration_zoom_ui")
-                   ),
-                   column(width = 3,
-                   checkboxInput(
-                     inputId = "remove_na",
-                     label   = "Remove missing values",
-                     value   = FALSE
-                   ))
-                   ),
-                 fluidRow(
-                   column(width = 6,
-                   plotOutput("varPlot")), 
-                   column(width = 6,
-                   plotOutput("varDurationPlot"))
+                   card(
+                     height="1000px",
+                   h3("Preprocessed data preview"),
+                   DT::dataTableOutput("preview")
                    )
+                 )),
+        
+        ### Data summary ------------------------------------------------------------
+        
+        tabPanel(title=tagList(icon("chart-simple"),"Data summary"),
+                 card(
+                   h3("Numerical data overview"),
+                   DT::dataTableOutput("dataSummary")),
+                 
+                 card(
+                   h3("Custom variable overview"),
+                   fluidRow(
+                     column(width = 3,
+                            helpText("For example 'List' or 'Condition'."),
+                            textInput(
+                              inputId = "custom_var_name",
+                              label   = "Type your variable name here:",
+                              value   = "",
+                              width   = "100%"),
+                            helpText("For example 'Start' or 'undefined' or 'NULL'."),
+                            textInput(
+                              inputId = "exclude_var_list",
+                              label   = "Exclude values (comma-separated):",
+                              value   = "",
+                              width   = "100%"),
+                     
+                     checkboxInput(
+                       inputId = "remove_na",
+                       label   = "Remove missing values",
+                       value   = FALSE
+                     ),
+                     checkboxInput(
+                       inputId = "aggregate_data",
+                       label   = "Aggregate data",
+                       value   = FALSE
+                     ),
+                     uiOutput("duration_zoom_ui")
+                   ),
+                     column(width = 8,
+                            plotOutput("varPlot"), 
+                            plotOutput("varDurationPlot"))
+                   ))
         ),
-
-### Participant overview ----------------------------------------------------
-
+        
+        ### Participant overview ----------------------------------------------------
+        
         tabPanel(title=tagList(icon("users"),"Participant overview"),
                  fluidRow(
-                   column(width = 4,
-                   uiOutput("participant_count")
-                   ),
-                   column(width = 4,
-                   uiOutput("average_trial")
-                   ),
-                   column(width = 4,
-                   uiOutput("median_duration")
-                   )
-                   ), 
+                   column(
+                     width=4,
+                     value_box(
+                       title = "Participant count", 
+                       value = textOutput("participant_count"), 
+                       theme = value_box_theme(
+                         bg = "#201010",
+                         fg = "#EBE5E0"
+                       ),
+                       showcase = fontawesome::fa_i("users"), 
+                       showcase_layout = "left center",
+                       full_screen = FALSE, fill = TRUE, height = NULL
+                     )),
+                   
+                   column(
+                     width=4,
+                     value_box(
+                       title = "Avg Trials / Participant", 
+                       value = textOutput("average_trial"), 
+                       theme = value_box_theme(
+                         bg = "#7c6f42",
+                         fg = "#EBE5E0"
+                       ),
+                       showcase = fontawesome::fa_i("list-check"), 
+                       showcase_layout = "left center",
+                       full_screen = FALSE, fill = TRUE, height = NULL
+                     )),
+                   
+                   column(
+                     width=4,
+                     value_box(
+                       title = "Median duration in minutes (SD)", 
+                       value = textOutput("median_duration"), 
+                       theme = value_box_theme(
+                         bg = "#794729",
+                         fg = "#EBE5E0"
+                       ),
+                       showcase = fontawesome::fa_i("hourglass-end"), 
+                       showcase_layout = "left center",
+                       full_screen = FALSE, fill = TRUE, height = NULL
+                     )),
+                 ),
                  fluidRow(
+                   card(
                    h3("Data preview"),
+                   fluidRow(
                    column(width = 6,
                           plotOutput("participantPlot", 
                                      height = "500px")
-                          ),
+                   ),
                    column(width = 6,
                           plotOutput("participantDurationHistogramPlot",
                                      height = "500px")
-                   )
+                   )))
                  ),
                  fluidRow(
+                   card(
                    column(h3("Data collection timeline"),
                           width = 12, timevisOutput("participantTimeline"))
-                 ),
+                 )),
                  fluidRow(
+                   card(
                    column(h3("Participant summary"),
                           width = 12, DT::dataTableOutput("participantSummary"))
                    
-                 )
+                 ))
         ),
-
-### Usage guide -------------------------------------------------------------
-
+        
+        ### Usage guide -------------------------------------------------------------
+        
         tabPanel(title=tagList(icon("circle-info"),"Usage Guide"),
+                 fluidRow(
+                     column(width=6,
+                     card(
+                       fluidRow(h3("How to use this app"),
+                     column(width=10,
+                            
                  HTML(markdown::markdownToHTML(text = "
-### How to use this app
+The recommended workflow is as follows:
+                 
+###### 1. **Upload:** Select a raw PCIbex CSV results file.
+###### 2. **Process:** Click the 'Submit' button to process the file.
+###### 3. **Preview:** View the processed data in the 'Table preview', 'Data summary', and 'Participant overview' tabs. 
+###### 4. **Filter:**
 
-**Workflow**: Upload → Process → Filter → View → Download
+- (Optional) In the sidebar, select the columns you want to include.
+- (Optional) In the sidebar, enter a search phrase to filter rows.
 
-- Upload a raw PCIbex CSV results file.
-- Click the **Submit** button to process the file.
-- (Optional) Select the columns you want to include.
-- (Optional) Enter a search phrase to filter rows.
-- View the processed data in the **Table Preview** tab. 
-- (Optional) Preview the data in the **Data summary** and **Participant overview** tabs.
-- Download the filtered dataset by clicking **Download formatted CSV**.
+###### 5. **Download:** Download the filtered dataset by clicking 'Download formatted CSV'.
+                                               
+Any filter that was applied to the data will be applied to the downloaded file.", 
+                                               fragment.only = TRUE)
+                 )), # end column
+                 column(width=2,
+                        img(src='flowchart.svg', style="min-width: 30%; width: 90%")
+                 ))), # end card
+                 ),
+column(width=6,
+       card(h3("Troubleshooting"),
+            HTML(markdown::markdownToHTML(text = "
+Follow these steps if you're having trouble uploading and processing your data.
 
-### Data Summary
-
+- Ensure that your file is the unmodified PCIbex results file in CSV format.
+- Check that the file size does not exceed 30MB.
+- Check the file encoding. UTF-8 should usually work.
+- If no data appears, you may have unchecked required columns (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
+- If no data appears, verify that the row filter phrase is correct.
+- It's always a good idea to double-check the spelling.
+- The plots might take a few seconds to load. If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar.
+- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
+                             ", fragment.only = TRUE)
+                 ) # end HTML
+            ))     # end column
+),
+fluidRow(
+  column(width=12,
+         card(h3("Data preview"),
+              accordion(
+                accordion_panel(
+                  value="table",
+                  title = tagList(
+                  icon("table"),
+                  " Table preview"
+                ),
+                                HTML(markdown::markdownToHTML(text = "
+This tab shows the preview of the preprocessed file. 
+This is the data that will be saved after clicking on 'Download formatted CSV'.
+All exlusion and inclusion criteria are applied. 
+The data summaries in the other tabs will not be saved.", fragment.only = TRUE
+                                ))
+                                ),
+                accordion_panel(
+                  value="data summary",
+                  title=tagList(icon("chart-simple"),"Data summary"),
+                                HTML(markdown::markdownToHTML(text = "
 This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
 This information can be useful for checking whether there is an equal amount of lists, conditions, and items in the recorded data.
 
 - **Occurrences** bar plot shows how many times each group appears in the data. Helps identify unbalanced data.
 - **Average duration** boxplot shows the duration in minutes of each trial for each group. Helps identify cases which take longer or shorter on average.
 - Enter the variable name to plot.
+- Keep or remove missing values (NA) in the checkbox.
 - (Optional) Input comma-separated values in the second text field to exclude values from the plots. This can also be a space, NULL, Start, End, or any other value.
 - (Optional) Use the slider to zoom in and out on duration ranges in the boxplot. The slider appears only after data upload.
-- Keep or remove missing values (NA) in the checkbox.
-- If the app does not detect your list variable, you can specify it in the text field.
+- (Optional) Aggregate the duration plot data. This is useful for comparing durations between items or conditions. For comparing list durations, the data should not be aggregated.
 
 You can download the plots by right-clicking on them and selecting 'Save image as...'.
-
-### Participant overview
-
+", fragment.only = TRUE
+                                ))
+                                ),
+                accordion_panel(
+                  value="participants",
+                  title=tagList(icon("users"),"Participant overview"),
+                                HTML(markdown::markdownToHTML(text = "
 This tab shows two plots and a summary table of counts and durations.
 This information is useful for determining participants that are outside of the normal range (took the experiment several times, and took too long or too short to complete the experiment).
 
 - **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
 - **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
 
-You can download the plots by right-clicking on them and selecting 'Save image as...'.
+You can download the plots by right-clicking on them and selecting 'Save image as...'.", fragment.only = TRUE
+                                ))
+                                )
+                ), # end accordion
 
+              
+              ))
+  ), # end row
 
-### Troubleshooting
-
-Follow these steps if you're having trouble uploading and processing your data.
-
-- Ensure that your file is in CSV format.
-- Check that the file size does not exceed 30MB.
-- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
-- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
-- If no data appears, verify that the row filter phrase is correct.
-- It's always a good idea to double-check the spelling.
-- The plots might take a few seconds to load. 
-- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
-- The explorer works only with the unmodified PCIbex results file.
-- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
-
-
+                 card(
+                 HTML(markdown::markdownToHTML(text = "
 ### Version
 
 
@@ -267,8 +353,9 @@ Follow these steps if you're having trouble uploading and processing your data.
                  
         )
       )
-    )
-  )
+    ))
+  ),
+  div(id = "bottom-svg", tags$img(src = "mountains.svg"))
 )
 
 
@@ -277,8 +364,8 @@ Follow these steps if you're having trouble uploading and processing your data.
 # Define server logic
 server <- function(input, output, session) {
   
-## Data input processing ---------------------------------------------------
-
+  ## Data input processing ---------------------------------------------------
+  
   # Process the file when the "Submit" button is clicked
   mydata <- eventReactive(input$go, {
     inFile <- input$raw.file
@@ -294,7 +381,7 @@ server <- function(input, output, session) {
                        choices = names(mydata()),
                        selected = names(mydata()))
   })
-
+  
   # Reactive expression for filtered data based on column selection and search phrase
   filtered_data <- reactive({
     req(mydata())
@@ -312,9 +399,9 @@ server <- function(input, output, session) {
     return(data)
   })
   
-
-## Table preview -----------------------------------------------------------
-
+  
+  ## Table preview -----------------------------------------------------------
+  
   # Render an interactive DT table with dynamic filtering and pagination (using filtered data)
   output$preview <- DT::renderDataTable({
     req(filtered_data())
@@ -345,9 +432,9 @@ server <- function(input, output, session) {
       DT::datatable(data.frame(Message = "No numeric columns found."), rownames = FALSE)
     }
   })
-
-## Custom variable info ----------------------------------------------------
-
+  
+  ## Custom variable info ----------------------------------------------------
+  
   # Variable count plot
   output$varPlot <- renderPlot({
     req(filtered_data())
@@ -455,7 +542,7 @@ server <- function(input, output, session) {
       )
   })
   
-  
+ 
   # Duration plot
   output$varDurationPlot <- renderPlot({
     req(filtered_data())
@@ -495,16 +582,17 @@ server <- function(input, output, session) {
       stop("No valid variable column found.")
     }
     
-    # Calculate average duration per list
+    # Calculate average duration per unit
     duration_data <- data |>
       mutate(
-        EventTime = eventtime / 1000,
-        duration = results.reception.time - EventTime,
+        eventtime = eventtime / 1000,
+        duration = results.reception.time - eventtime,
         duration = round(duration / 60, 1)  # minutes
       ) |>
       mutate(
         !!var_col := as.factor(.data[[var_col]])   
       )  
+    
     
     # Optionally remove missing values
     if (input$remove_na) {
@@ -518,11 +606,50 @@ server <- function(input, output, session) {
         filter(!(duration_data[[var_col]] %in% excl))
     }
     
+    if (input$aggregate_data) {
+      plot_data <-  
+        duration_data |>
+        filter(parameter == "_Trial_") |>
+        select(
+          md5.hash.of.participant.s.ip.address,
+          .data[[var_col]],
+          value,
+          eventtime,
+          order.number.of.item
+        )  |>
+        filter(value %in% c("Start", "End")) |>
+        unique() |>
+        pivot_wider(
+          names_from = value,
+          values_from = eventtime
+        )
+      
+      if (is.list(plot_data$Start) || is.list(plot_data$End)) {
+        plot_data <- NULL
+      } else {
+      plot_data <- 
+        plot_data |>
+        mutate(Start = as.numeric(Start),
+               End = as.numeric(End)) |>
+        filter(!is.na(Start), !is.na(End)) |>
+        mutate(
+          duration = (End - Start)/60
+        ) }
+      } else {
+          plot_data <- duration_data
+        }
+
+    
     # Duration range
-    zoom_range <- input$duration_zoom
+    zoom_range <- input$duration_zoom    
     
     # Plot
-    ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
+    if (is.null(plot_data)) {
+      ggplot() +
+        annotate("text", x = 0.5, y = 0.5, label = "No valid variable found. Check for duplicate data.", size = 5, hjust = 0.5) +
+        theme_void()
+    } else {
+    ggplot(plot_data, aes(y = duration, x = .data[[var_col]])) +
       geom_boxplot(fill = "#ebe5e0", 
                    outlier.color = "#201010", 
                    outlier.size = 2) +
@@ -540,6 +667,8 @@ server <- function(input, output, session) {
         legend.background = element_blank(),
         legend.box.background = element_blank()
       )
+    }
+     
   })
   
   
@@ -582,17 +711,17 @@ server <- function(input, output, session) {
       min = min_dur,
       max = max_dur,
       value = c(min_dur, max_dur),
-      step = 1,
+      step = 0.1,
       ticks = FALSE  
     )
   })
   
   
   
-# Participant info --------------------------------------------------------
-
-
-
+  # Participant info --------------------------------------------------------
+  
+  
+  
   # Render participant information: count of participants in data
   output$participantSummary <- DT::renderDataTable({
     req(filtered_data())
@@ -610,8 +739,8 @@ server <- function(input, output, session) {
                 duration = max(duration),
                 `data collection start` = min(EventTimePOSIX)
       )
-
-
+    
+    
     if (ncol(participant_data) > 0) {
       # Using the psych package's describe function for summary statistics
       summary_stats <- participant_data
@@ -622,9 +751,9 @@ server <- function(input, output, session) {
     }
   })
   
-
-# Participant count
-
+  
+  # Participant count
+  
   output$participantPlot <- renderPlot({
     req(filtered_data())
     data <- filtered_data()
@@ -687,7 +816,7 @@ server <- function(input, output, session) {
       if (outlier_min < 0) {
         outlier_min<-0
       } 
-                  
+      
       # Histogram
       ggplot(duration_data, aes(x = duration)) +
         geom_histogram(
@@ -744,9 +873,9 @@ server <- function(input, output, session) {
     }
   })
   
-
-### Timeline ----------------------------------------------------------------
-
+  
+  ### Timeline ----------------------------------------------------------------
+  
   
   # Render timeline
   output$participantTimeline <- renderTimevis({
@@ -775,8 +904,8 @@ server <- function(input, output, session) {
       data = participant_data,
       options = list(
         height = "300px",
-          editable = FALSE,
-          showZoom = TRUE
+        editable = FALSE,
+        showZoom = TRUE
       )
     )
   })
@@ -785,7 +914,7 @@ server <- function(input, output, session) {
   ### Cards ---------------------------------------------------------------
   
   ## Participant count 
-  output$participant_count <- renderUI({
+  output$participant_count <- renderText({
     req(filtered_data())
     data <- filtered_data()
     
@@ -797,177 +926,71 @@ server <- function(input, output, session) {
       NA
     }
     
-    div(
-      class = "well",
-      style = "
-    background-color: #201010;
-    padding: 12px 16px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      
-      # Outer row
-      tags$div(
-        style = "display: flex; align-items: center; gap: 16px;",
-        
-        # Left column: icon
-        icon(
-          "users",
-          style = "font-size: 4em; color: #ebe5e0;"
-        ),
-        
-        # Right column: text (stacked)
-        tags$div(
-          style = "display: flex; flex-direction: column;",
-          
-          h5(
-            "Participant count",
-            style = "margin: 0;"
-          ),
-          
-          if (is.na(part_nr)) {
-            tags$em("Participant ID column missing.")
-          } else {
-            h2(
-              part_nr,
-              style = "margin: 4px 0 0 0;"
-            )
-          }
-        )
-      )
-    )
-    
-    
+    if (is.na(part_nr)) {
+      "Participant ID column missing."
+    } else {
+      as.character(part_nr)
+    }
   })
-  
-  
-  output$median_duration <- renderUI({
+  output$median_duration <- renderText({
     req(filtered_data())
     data <- filtered_data()
     
     if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
       
-      # Calculate max duration per participant
       duration_data <- data |>
-        mutate(
+        dplyr::mutate(
           EventTime = EventTime / 1000,
           duration = Results.reception.time - EventTime,
           duration = round(duration / 60, 1)
         ) |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(duration = max(duration, na.rm = TRUE)) |>
-        ungroup()
+        dplyr::group_by(MD5.hash.of.participant.s.IP.address) |>
+        dplyr::summarise(
+          duration = max(duration, na.rm = TRUE),
+          .groups = "drop"
+        )
       
-      # Compute mean duration
-      median_duration <- round(median(duration_data$duration, na.rm = TRUE),1)
-      sd_duration <- round(sd(duration_data$duration, na.rm = TRUE),1)
+      median_duration <- round(median(duration_data$duration, na.rm = TRUE), 1)
+      sd_duration <- round(stats::sd(duration_data$duration, na.rm = TRUE), 1)
       
     } else {
-      NA
+      median_duration <- NA
+      sd_duration <- NA
     }
     
-    div(
-      class = "well",
-      style = "
-    background-color: #794729;
-    padding: 12px 16px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      
-      # Outer row
-      tags$div(
-        style = "display: flex; align-items: center; gap: 16px;",
-        
-        # Left column: icon
-        icon(
-          "hourglass-end",
-          style = "font-size: 4em; color: #ebe5e0;"
-        ),
-        
-        # Right column: text (stacked)
-        tags$div(
-          style = "display: flex; flex-direction: column;",
-          
-          h5(
-            "Median duration (SD)",
-            style = "margin: 0;"
-          ),
-          
-          if (is.na(median_duration)) {
-            tags$em("Participant ID or duration column missing.")
-          } else {
-            h2(
-              paste0(median_duration, " minutes (", sd_duration, ")"),
-              style = "margin: 4px 0 0 0;"
-            )
-          }
-        )
-      )
-    )
-    
+    if (is.na(median_duration)) {
+      "Participant ID or duration column missing."
+    } else {
+      paste0(median_duration, " (", sd_duration, ")")
+    }
   })
   
-  
-  output$average_trial <- renderUI({
+  output$average_trial <- renderText({
     req(filtered_data())
     data <- filtered_data()
     
-    
-    if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
-      
-      avg_trials <- data |>
-        group_by(MD5.hash.of.participant.s.IP.address) |>
-        summarise(trials = n(), .groups = "drop") |>
-        summarise(mean_trials = round(median(trials, na.rm = TRUE), 1)) |>
-        pull(mean_trials)
+    avg_trials <- if ("MD5.hash.of.participant.s.IP.address" %in% colnames(data)) {
+      data |>
+        dplyr::group_by(MD5.hash.of.participant.s.IP.address) |>
+        dplyr::summarise(trials = dplyr::n(), .groups = "drop") |>
+        dplyr::summarise(
+          mean_trials = round(median(trials, na.rm = TRUE), 1)
+        ) |>
+        dplyr::pull(mean_trials)
     } else {
       NA
     }
     
-    div(
-      class = "well",
-      style = "
-    background-color: #7c6f42;
-    padding: 12px 16px;
-    margin: 10px;
-    color: #ebe5e0;
-  ",
-      
-      # Outer row
-      tags$div(
-        style = "display: flex; align-items: center; gap: 16px;",
-        
-        # Left column: icon
-        icon(
-          "list-check",
-          style = "font-size: 4em; color: #ebe5e0;"
-        ),
-        
-        # Right column: text (stacked)
-        tags$div(
-          style = "display: flex; flex-direction: column;",
-          
-          h5(
-            "Avg Trials / Participant",
-            style = "margin: 0;"
-          ),
-          
-          if (is.na(avg_trials)) {
-            tags$em("Participant ID column missing.")
-          } else {
-            h2(
-              avg_trials,
-              style = "margin: 4px 0 0 0;"
-            )
-          }
-        )
-      )
-    )
-    
+    if (is.na(avg_trials)) {
+      "Participant ID column missing."
+    } else {
+      as.character(avg_trials)
+    }
   })
-
-## Data download -----------------------------------------------------------
+  
+  
+  
+  ## Data download -----------------------------------------------------------
   
   # Download handler: writes the filtered data as a CSV file
   output$downloadData <- downloadHandler(
@@ -985,7 +1008,3 @@ server <- function(input, output, session) {
 # RUN ---------------------------------------------------------------------
 # Run the application 
 shinyApp(ui = ui, server = server)
-
-
-# TODO --------------------------------------------------------------------
-
