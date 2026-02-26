@@ -24,7 +24,7 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background-color: #ccc;
+  background-color: rgba(32, 16, 16, 0.2);
   border-radius: 1.4em;
   border: none;
   outline: none;
@@ -156,14 +156,14 @@
 
 
 
+.h6 {
+  font-size: 1.1rem;
+}
 
-
-
-
-
-
-
-
+.shiny-input-container:not(.shiny-input-container-inline) {
+  margin-top: 0px;
+  margin-bottom: 20px;
+}
 
 .shiny-text-output {
   background: rgba(235, 229, 224, 0.0)
