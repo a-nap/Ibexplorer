@@ -6,7 +6,6 @@ library(timevis)
 library(psych)
 library(DT)
 library(bslib)
-library(visNetwork)
 
 
 options(shiny.maxRequestSize = 30*1024^2)
@@ -942,47 +941,6 @@ server <- function(input, output, session) {
       as.character(avg_trials)
     }
   })
-  
-  
-  
-
-# New dev ---------------------------------------
-  
-  nodes <- data.frame(
-    id = 1:5,
-    label = c("Upload", "Process", "Filter", "Preview", "Download"),
-    shape = "icon",
-    icon.face = "FontAwesome",
-    icon.code = c(
-      "f093",  # upload
-      "f085",  # cogs
-      "f0b0",  # filter
-      "f06e",  # eye
-      "f019"   # download
-    ),
-    icon.size = 50,
-    icon.color = "#794729",
-    icon.backgroud = "#ffffff"
-  )
-  
-  edges <- data.frame(
-    from = 1:4,
-    to   = 2:5,
-    arrows = "to"
-  )
-  
-  output$workflow <- renderVisNetwork({
-    visNetwork(nodes, edges) |>
-      visNodes(font = list(size = 24)) |>
-      visEdges(smooth = FALSE) |>
-      visHierarchicalLayout(
-        direction = "LR"
-      ) |>
-      visPhysics(enabled = FALSE) |>
-      visNodes(shapeProperties = list(useBorderWithImage = TRUE)) |>
-      visOptions(manipulation = list(enabled = FALSE))
-  })
-
   
   
   
