@@ -16,7 +16,7 @@ To run Ibexplorer, you need R and the required packages installed on your system
 2. Install Required Packages. Run the following command in R to install the necessary dependencies:
 
 ```r
-install.packages(c("shiny", "tidyverse", "shinythemes", "psych", "DT", "bslib"))
+install.packages(c("shiny", "tidyverse", "shinythemes", "timevis","psych", "DT", "bslib"))
 ```
 
 ## Running the Application
