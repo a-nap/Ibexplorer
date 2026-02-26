@@ -149,7 +149,11 @@ ui <- fluidPage(
                        label   = "Remove missing values",
                        value   = FALSE
                      ),
-                     
+                     checkboxInput(
+                       inputId = "aggregate_data",
+                       label   = "Aggregate data",
+                       value   = FALSE
+                     ),
                      uiOutput("duration_zoom_ui")
                    ),
                      column(width = 8,
@@ -539,6 +543,55 @@ server <- function(input, output, session) {
   })
   
   
+#   d <- read_pcibex("/home/anna/Seafile/Documents/Work/Uni Stuttgart/BracketingParadox/Experiments/Data/exp1results.csv")
+#   dd <-
+#     d |>
+#     rename_with(~ make.unique(tolower(.))) |>
+#     mutate(
+#       eventtime = eventtime / 1000,
+#       duration = results.reception.time - eventtime,
+#       duration = round(duration / 60, 1)  # minutes
+#     )
+# 
+# ddd <-  
+#  dd |>
+#     filter(parameter == "_Trial_") |>
+#     select(
+#       participant = md5.hash.of.participant.s.ip.address,
+#       unit = condition,
+#       value,
+#       eventtime,
+#       order.number.of.item
+#     )  |>
+#     filter(value %in% c("Start", "End")) |>
+#    unique() |>
+#     pivot_wider(
+#       names_from = value,
+#       values_from = eventtime
+#     ) |>
+#     filter(!is.na(Start), !is.na(End)) |>
+#     mutate(
+#       duration = round((End - Start) / 60, 1)
+#     ) |>
+#   mutate(unit = factor(unit))
+  
+# 
+# ggplot(ddd, aes(y = duration, x = unit)) +
+#   geom_boxplot(fill = "#ebe5e0", 
+#                outlier.color = "#201010", 
+#                outlier.size = 2) +
+#   labs(
+#     y = "Time in minutes"
+#   ) +
+#   theme_bw() +
+#   theme(
+#     panel.background = element_blank(),
+#     plot.background = element_rect(fill = "#ebe5e0", color = NA),
+#     panel.grid.major = element_blank(),
+#     legend.background = element_blank(),
+#     legend.box.background = element_blank()
+#   )
+ 
   # Duration plot
   output$varDurationPlot <- renderPlot({
     req(filtered_data())
@@ -578,16 +631,17 @@ server <- function(input, output, session) {
       stop("No valid variable column found.")
     }
     
-    # Calculate average duration per list
+    # Calculate average duration per unit
     duration_data <- data |>
       mutate(
-        EventTime = eventtime / 1000,
-        duration = results.reception.time - EventTime,
+        eventtime = eventtime / 1000,
+        duration = results.reception.time - eventtime,
         duration = round(duration / 60, 1)  # minutes
       ) |>
       mutate(
         !!var_col := as.factor(.data[[var_col]])   
       )  
+    
     
     # Optionally remove missing values
     if (input$remove_na) {
@@ -601,11 +655,38 @@ server <- function(input, output, session) {
         filter(!(duration_data[[var_col]] %in% excl))
     }
     
+    if (input$aggregate_data) {
+      plot_data <-  
+        duration_data |>
+        filter(parameter == "_Trial_") |>
+        select(
+          md5.hash.of.participant.s.ip.address,
+          .data[[var_col]],
+          value,
+          eventtime,
+          order.number.of.item
+        )  |>
+        filter(value %in% c("Start", "End")) |>
+        unique() |>
+        pivot_wider(
+          names_from = value,
+          values_from = eventtime
+        ) |>
+        mutate(Start = as.numeric(Start),
+               End = as.numeric(End)) |>
+        filter(!is.na(Start), !is.na(End)) |>
+        mutate(
+          duration = (End - Start)/60
+        ) } else {
+          plot_data <- duration_data
+        }
+
+    
     # Duration range
-    zoom_range <- input$duration_zoom
+    zoom_range <- input$duration_zoom    
     
     # Plot
-    ggplot(duration_data, aes(y = duration, x = .data[[var_col]])) +
+    ggplot(plot_data, aes(y = duration, x = .data[[var_col]])) +
       geom_boxplot(fill = "#ebe5e0", 
                    outlier.color = "#201010", 
                    outlier.size = 2) +
@@ -623,6 +704,7 @@ server <- function(input, output, session) {
         legend.background = element_blank(),
         legend.box.background = element_blank()
       )
+     
   })
   
   
@@ -665,7 +747,7 @@ server <- function(input, output, session) {
       min = min_dur,
       max = max_dur,
       value = c(min_dur, max_dur),
-      step = 1,
+      step = 0.5,
       ticks = FALSE  
     )
   })
