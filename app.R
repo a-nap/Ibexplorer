@@ -6,6 +6,8 @@ library(timevis)
 library(psych)
 library(DT)
 library(bslib)
+library(visNetwork)
+
 
 options(shiny.maxRequestSize = 30*1024^2)
 
@@ -110,7 +112,7 @@ ui <- fluidPage(
       ### Table preview -----------------------------------------------------------
       
       tabsetPanel(
-        tabPanel(title=tagList(icon("table"),"Table Preview"),
+        tabPanel(title=tagList(icon("table"),"Table preview"),
                  fluidRow(
                    card(
                      height="1000px",
@@ -130,26 +132,25 @@ ui <- fluidPage(
                    h3("Custom variable overview"),
                    fluidRow(
                      column(width = 3,
+                            helpText("For example 'List' or 'Condition'."),
                             textInput(
                               inputId = "custom_var_name",
                               label   = "Type your variable name here:",
                               value   = "",
                               width   = "100%"),
-                            helpText("For example 'List' or 'Condition'."),
-                            hr(),
+                            helpText("For example 'Start' or 'undefined' or 'NULL'."),
                             textInput(
                               inputId = "exclude_var_list",
                               label   = "Exclude values (comma-separated):",
                               value   = "",
                               width   = "100%"),
-                            helpText("For example 'Start' or 'undefined' or 'NULL'."),
-                     hr(),
+                     
                      checkboxInput(
                        inputId = "remove_na",
                        label   = "Remove missing values",
                        value   = FALSE
                      ),
-                     hr(),
+                     
                      uiOutput("duration_zoom_ui")
                    ),
                      column(width = 8,
@@ -205,7 +206,9 @@ ui <- fluidPage(
                      )),
                  ),
                  fluidRow(
+                   card(
                    h3("Data preview"),
+                   fluidRow(
                    column(width = 6,
                           plotOutput("participantPlot", 
                                      height = "500px")
@@ -213,36 +216,73 @@ ui <- fluidPage(
                    column(width = 6,
                           plotOutput("participantDurationHistogramPlot",
                                      height = "500px")
-                   )
+                   )))
                  ),
                  fluidRow(
+                   card(
                    column(h3("Data collection timeline"),
                           width = 12, timevisOutput("participantTimeline"))
-                 ),
+                 )),
                  fluidRow(
+                   card(
                    column(h3("Participant summary"),
                           width = 12, DT::dataTableOutput("participantSummary"))
                    
-                 )
+                 ))
         ),
         
         ### Usage guide -------------------------------------------------------------
         
         tabPanel(title=tagList(icon("circle-info"),"Usage Guide"),
+                 card(
+                   fluidRow(
+                     h3("How to use this app"),
+                     column(width=1,
+                     img(src='flowchart_vert.svg', style="min-width: 30%; width: 90%")
+                     ),
+                    column(width=5,
+                           h4("Workflow"),
                  HTML(markdown::markdownToHTML(text = "
-### How to use this app
+###### 1. **Upload:** Select a raw PCIbex CSV results file.
+###### 2. **Process:** Click the 'Submit' button to process the file.
+###### 3. **Preview:** View the processed data in the 'Table preview', 'Data summary', and 'Participant overview' tabs. 
+###### 4. **Filter:**
 
-**Workflow**: Upload → Process → Filter → View → Download
+- (Optional) In the sidebar, select the columns you want to include.
+- (Optional) In the sidebar, enter a search phrase to filter rows.
 
-- Upload a raw PCIbex CSV results file.
-- Click the **Submit** button to process the file.
-- (Optional) Select the columns you want to include.
-- (Optional) Enter a search phrase to filter rows.
-- View the processed data in the **Table Preview** tab. 
-- (Optional) Preview the data in the **Data summary** and **Participant overview** tabs.
-- Download the filtered dataset by clicking **Download formatted CSV**.
+###### 5. **Download:** Download the filtered dataset by clicking 'Download formatted CSV'.", 
+                                               fragment.only = TRUE)
+                 )), # end of column
+                 column(width=6,
+                        h4("Troubleshooting"),
+                        HTML(markdown::markdownToHTML(text = "
+Follow these steps if you're having trouble uploading and processing your data.
 
-### Data Summary
+- Ensure that your file is in CSV format.
+- Check that the file size does not exceed 30MB.
+- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
+- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
+- If no data appears, verify that the row filter phrase is correct.
+- It's always a good idea to double-check the spelling.
+- The plots might take a few seconds to load. 
+- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
+- The explorer works only with the unmodified PCIbex results file.
+- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
+                 ", fragment.only = TRUE)))
+                 )  # end of row
+                 ),
+                 card(
+                   h3("Data preview"),
+                 HTML(markdown::markdownToHTML(text = "
+#### Table preview
+
+This tab shows the preview of the preprocessed file. 
+This is the data that will be saved after clicking on 'Download formatted CSV'.
+All exlusion and inclusion criteria are applied. 
+The data summaries in the other tabs will not be saved.
+
+#### Data Summary
 
 This tab shows a summary of all numerical data and plots for counts and durations of a custom variable.
 This information can be useful for checking whether there is an equal amount of lists, conditions, and items in the recorded data.
@@ -257,7 +297,7 @@ This information can be useful for checking whether there is an equal amount of 
 
 You can download the plots by right-clicking on them and selecting 'Save image as...'.
 
-### Participant overview
+#### Participant overview
 
 This tab shows two plots and a summary table of counts and durations.
 This information is useful for determining participants that are outside of the normal range (took the experiment several times, and took too long or too short to complete the experiment).
@@ -265,25 +305,11 @@ This information is useful for determining participants that are outside of the 
 - **Participant counts** bar plot shows the number of trials per participant. Should probably be the same number for each participant. Plot height adjusts automatically if there are many participants.
 - **Participant durations** histogram with a density line shows the distribution of total participant durations in minutes. Helps identify participants who took much longer or shorter than average. The dashed vertical line shows the mean duration. Dotted lines show ±2 standard deviations from the mean; the lower bound is capped at 0.
 
-You can download the plots by right-clicking on them and selecting 'Save image as...'.
-
-
-### Troubleshooting
-
-Follow these steps if you're having trouble uploading and processing your data.
-
-- Ensure that your file is in CSV format.
-- Check that the file size does not exceed 30MB.
-- Sometimes the file encoding might be incorrect, but UTF-8 should usually work.
-- If no data appears, verify that the correct columns are selected (e.g. 'Results.reception.time', 'EventTime', 'MD5.hash.of.participant.s.IP.addres').
-- If no data appears, verify that the row filter phrase is correct.
-- It's always a good idea to double-check the spelling.
-- The plots might take a few seconds to load. 
-- If no plots appear or there are errors, ensure that you have not unchecked required columns or filtered out required values in the sidebar. 
-- The explorer works only with the unmodified PCIbex results file.
-- Contact the developer: Anna Prysłopska `anna . pryslopska [AT] gmail. com`
-
-
+You can download the plots by right-clicking on them and selecting 'Save image as...'.", fragment.only = TRUE)
+                 )
+                 ),
+                 card(
+                 HTML(markdown::markdownToHTML(text = "
 ### Version
 
 
@@ -300,7 +326,7 @@ Follow these steps if you're having trouble uploading and processing your data.
                  
         )
       )
-    )
+    ))
   ),
   div(id = "bottom-svg", tags$img(src = "mountains.svg"))
 )
@@ -894,6 +920,48 @@ server <- function(input, output, session) {
   })
   
   
+  
+
+# New dev ---------------------------------------
+  
+  nodes <- data.frame(
+    id = 1:5,
+    label = c("Upload", "Process", "Filter", "Preview", "Download"),
+    shape = "icon",
+    icon.face = "FontAwesome",
+    icon.code = c(
+      "f093",  # upload
+      "f085",  # cogs
+      "f0b0",  # filter
+      "f06e",  # eye
+      "f019"   # download
+    ),
+    icon.size = 50,
+    icon.color = "#794729",
+    icon.backgroud = "#ffffff"
+  )
+  
+  edges <- data.frame(
+    from = 1:4,
+    to   = 2:5,
+    arrows = "to"
+  )
+  
+  output$workflow <- renderVisNetwork({
+    visNetwork(nodes, edges) |>
+      visNodes(font = list(size = 24)) |>
+      visEdges(smooth = FALSE) |>
+      visHierarchicalLayout(
+        direction = "LR"
+      ) |>
+      visPhysics(enabled = FALSE) |>
+      visNodes(shapeProperties = list(useBorderWithImage = TRUE)) |>
+      visOptions(manipulation = list(enabled = FALSE))
+  })
+
+  
+  
+  
   ## Data download -----------------------------------------------------------
   
   # Download handler: writes the filtered data as a CSV file
@@ -912,9 +980,3 @@ server <- function(input, output, session) {
 # RUN ---------------------------------------------------------------------
 # Run the application 
 shinyApp(ui = ui, server = server)
-
-
-# TODO --------------------------------------------------------------------
-
-# FIXME make the participant infos to cards
-# FIXME Average duration per sentence/item/condition is incorrect. is basically only shows the list duration ??
